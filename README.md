@@ -291,22 +291,26 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
    Birden fazla sayfa gerekiyorsa üst başlık her sayfada yinelenir, sağ altta **`2 / 10`** biçiminde
    sayfa numarası çıkar; taahhüt metni ile imza kutuları **tek parça** sayılır — imza kutuları
    sonraki sayfaya geçerse taahhüt metni de onlarla birlikte gider.
-6. **İmza kutuları** (`İmza:` alanı, 0–10) iki satıra bölünür ve kutular **esnemez**; hepsi aynı
-   genişliktedir, alt satır üstteki satıra göre ortalanır. Etiket **yalnızca ilk kutuda**
-   (*Servis Sorumlusu*) yazar; diğer kartlar boş imza alanıdır.
+6. **İmza kutuları** — iki alan vardır:
+   - **İmza:** toplam kutu sayısı. **Üst sınır yoktur** (0–istediğiniz kadar).
+   - **Satırdaki kutu:** her satırda kaç kutu olacağı. **Boş bırakılırsa** kutular dengeli
+     dağıtılır (4'e kadar tek satır; 5 → 3+2, 6 → 3+3, 8 → 4+4, 10 → 5+5, 12 → 4+4+4,
+     13 → 5+5+3, 25 → 5×5).
 
-   | İmza sayısı | Yerleşim |
+   Kutular **esnemez**, hepsi eşit genişliktedir ve son satır üsttekilere göre ortalanır.
+   Etiket **yalnızca ilk kutuda** (*Servis Sorumlusu*) yazar; diğer kartlar boş imza alanıdır.
+   Kutular sayfaya sığmazsa satır satır sonraki sayfaya taşar; **taahhüt metni her zaman
+   ilk imza satırıyla aynı sayfada** kalır.
+
+   | İmza | Otomatik yerleşim |
    |---|---|
-   | 1 | tek kutu (tam genişlik) |
-   | 2 | 2 |
-   | 3 | 2 + 1 (alt ortalı) |
-   | 4 | 2 + 2 |
+   | 1–4 | tek satır |
    | 5 | 3 + 2 (alt ortalı) |
    | 6 | 3 + 3 |
-   | 7 | 4 + 3 |
    | 8 | 4 + 4 |
-   | 9 | 5 + 4 |
    | 10 | 5 + 5 |
+   | 12 | 4 + 4 + 4 |
+   | 13 | 5 + 5 + 3 |
 
 7. 📄 butonu şartnameyi açar: **Word (.docx)** dosyaları biçimlendirmesiyle birlikte pencere içinde
    görüntülenir (tablo/başlıklar korunur), PDF'ler yeni sekmede açılır, eski `.doc` dosyaları indirilir.

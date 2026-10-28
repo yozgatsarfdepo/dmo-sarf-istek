@@ -41,7 +41,14 @@ export function dagit(yukseklikler, kapasite, gruplar) {
   const ogeler = [];
   for (const p of parcalar) {
     if (p.grup !== null && p.y > kapasite) {
-      for (let i = p.bas; i < p.son; i++) ogeler.push({ y: yukseklikler[i], bas: i, son: i + 1 });
+      // Grup tek başına sayfaya sığmıyor: parçalanır. İlk iki öğe (taahhüt metni +
+      // ilk imza satırı) yine birlikte tutulur ki metin imzasız kalmasın.
+      let i = p.bas;
+      if (p.son - p.bas >= 2) {
+        ogeler.push({ y: yukseklikler[p.bas] + yukseklikler[p.bas + 1], bas: p.bas, son: p.bas + 2 });
+        i = p.bas + 2;
+      }
+      for (; i < p.son; i++) ogeler.push({ y: yukseklikler[i], bas: i, son: i + 1 });
     } else {
       ogeler.push(p);
     }

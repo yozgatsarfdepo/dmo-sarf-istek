@@ -431,15 +431,17 @@ function docxOnizle(smtKodu, res) {
 
 /* ---------------- Yazdırma ---------------- */
 
-// İmza kutuları: sütun sayısı kutu sayısından hesaplanır ve alt satır üstteki
-// satıra göre ortalanır (5 → 3+2, 6 → 3+3, 8 → 4+4). Kutular esnemez; her kutu
-// üst satırdaki genişliği korur, böylece 6. kutu tek başına satırı kaplamaz.
+// İmza kutuları: satır başına kutu sayısı kullanıcıdan alınır (boşsa kutu sayısı
+// iki satıra eşit bölünür). Kutular esnemez; son satır üsttekilere göre ortalanır.
 const IMZA_ETIKETI = 'SERVİS SORUMLUSU';
 
-function imzaKutulariHtml(n) {
-  if (!n) return '';
-  // Tek imza satırı kaplar; 2 ve üzerinde sütun sayısı yarıya bölünür.
-  const kolon = n === 1 ? 1 : Math.max(2, Math.ceil(n / 2));
+function imzaSatirlari(n, satirBasina) {
+  if (!n) return [];
+  // Kullanıcı satır başına kutu verdiyse o kullanılır. Verilmediyse otomatik:
+  // 4'e kadar tek satır, sonrası dengeli bölünür (6 → 3+3, 5 → 3+2, 8 → 4+4).
+  const kolon = satirBasina > 0
+    ? Math.min(n, satirBasina)
+    : (n <= 4 ? n : Math.ceil(n / Math.max(2, Math.ceil(n / 5))));
   const genis = `width:calc((100% - ${(kolon - 1) * 8}px) / ${kolon});`;
   const satirlar = [];
   let i = 0;
@@ -453,11 +455,12 @@ function imzaKutulariHtml(n) {
     }
     satirlar.push(`<div class="sig-row">${html}</div>`);
   }
-  return `<div class="sig-container">${satirlar.join('')}</div>`;
+  return satirlar;
 }
 
 $('printBtn').onclick = () => {
-  const sigN = Math.max(0, Math.min(10, parseInt($('sigCount').value, 10) || 0));
+  const sigN = Math.max(0, parseInt($('sigCount').value, 10) || 0);
+  const sigPerRow = parseInt($('sigPerRow').value, 10) || 0;
   const rows = [];
 
   for (const m of STATE.materials) {
@@ -468,12 +471,12 @@ $('printBtn').onclick = () => {
   if (!rows.length) return toast('İstek yok');
   rows.sort((a, b) => (a.tanim || '').localeCompare(b.tanim || '', 'tr'));
 
-  const sigs = imzaKutulariHtml(sigN);
-
   const rowsHtml = rows.map((r, i) => `<tr>
     <td style="text-align:center;">${i + 1}</td><td>${esc(r.sutKodu)}</td><td>${esc(r.tasinirKodu)}</td><td>${esc(r.tanim)}</td>
     <td style="text-align:center;">ADET</td><td style="text-align:right;">${fmt(r.miktar)}</td>
   </tr>`);
+
+  const sigRows = imzaSatirlari(sigN, sigPerRow);
 
   const printSvcName = String((STATE.service && STATE.service.name) || '').trim() || 'Servis';
   const t = taahhutBilgi(rows.length);
@@ -495,15 +498,16 @@ $('printBtn').onclick = () => {
     </div>`,
     tableHead: '<tr><th>#</th><th>SutKodu</th><th>Taşınır Kodu</th><th>Malzeme Tanımı</th><th>Birim</th><th>Miktar</th></tr>',
     rows: rowsHtml,
-    // Taahhüt metni ve imza kutuları tek parçadır: biri sayfaya sığmıyorsa
-    // ikisi birlikte sonraki sayfaya geçer (neye taahhüt verildiği görünsün).
+    // Taahhüt metni ve imza satırları: sığdıkça aynı sayfada kalır, sığmazsa
+    // birlikte sonraki sayfaya geçer. Taahhüt her zaman ilk imza satırıyla aynı
+    // sayfadadır (neye taahhüt verildiği görünsün); sonraki satırlar sayfaya yayılır.
     blocks: [
       { grup: 'imza', html: `<div class="taahhut-print">
         <div class="taahhut-print-h">TAAHHÜT</div>
         <p>${esc(t.metin)}</p>
       </div>` },
-      sigN ? { grup: 'imza', html: sigs } : null
-    ].filter(Boolean),
+      ...sigRows.map(html => ({ grup: 'imza', html }))
+    ],
     altBilgi: `${esc(printSvcName)} · ${esc(donemAd)} · ${rows.length} kalem`,
     css: `
       body { font-size: 12px; }
@@ -516,9 +520,7 @@ $('printBtn').onclick = () => {
       .signature-box .lbl { position: absolute; top: 4px; left: 8px; font-size: 10px; font-weight: 700; color: #475569; }
       .signature-box .sub { position: absolute; bottom: 6px; left: 8px; right: 8px; font-size: 10px;
         color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 3px; }
-      .sig-row { display: flex; gap: 8px; justify-content: center; }
-      .sig-row + .sig-row { margin-top: 8px; }
-      .sig-container { padding-top: 10px; break-inside: avoid; page-break-inside: avoid; }
+      .sig-row { display: flex; gap: 8px; justify-content: center; padding-top: 8px; }
       .print-header { text-align: center; padding-bottom: 5px; }
       .print-header h3 { margin: 0; font-size: 15px; }
       .print-header p { margin: 2px 0; font-size: 12px; }
