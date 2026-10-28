@@ -1,2 +1,11 @@
-/s/*  /service.html?token=:splat  200
-/admin  /index.html  200
+# Cloudflare Pages yönlendirmeleri (Netlify ile aynı söz dizimi)
+
+# Kısa yollar. Hedef olarak ".html" yazılmaz: Cloudflare Pages ".html" adreslerini
+# 308 ile uzantısız adrese yönlendirdiği için sorgu parametreleri kaybolabilir.
+/admin    /        200
+/servis   /service 200
+
+# NOT: Servis linkleri (/s/<token>) burada tanımlanmaz.
+# Cloudflare Pages, ".html" hedefli 200 yeniden yazımlarını 308 yönlendirmeye çevirip
+# token'ı düşürdüğü için /s/* yolu functions/s/[[token]].js fonksiyonuyla karşılanır:
+# URL değişmeden service.html içeriği döner, kod adresten okunur.

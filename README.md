@@ -1,6 +1,7 @@
-# A Grubu Tıbbi Sarf Malzeme İstek Sistemi — Firebase + Netlify
+# A Grubu Tıbbi Sarf Malzeme İstek Sistemi — Firebase + Cloudflare Pages
 
-Google Apps Script + Google Sheets sürümünün (yavaş kalan) yerine geçen, **Firebase (Firestore + Auth)** üzerinde çalışan ve **Netlify**'da statik olarak yayınlanan sürüm.
+Google Apps Script + Google Sheets sürümünün (yavaş kalan) yerine geçen, **Firebase (Firestore + Auth)** üzerinde çalışan ve **Cloudflare Pages**'te statik olarak yayınlanan sürüm
+(yayın adresi: **https://dmo-sarf-istek.pages.dev**).
 
 - Sayfalar anında açılır (statik HTML/CSS/JS, CDN üzerinden dağıtım).
 - Veriler Firestore'da tutulur; Google Sheets'in satır satır okuma yavaşlığı yoktur.
@@ -14,9 +15,11 @@ Google Apps Script + Google Sheets sürümünün (yavaş kalan) yerine geçen, *
 ## 1. Dosya yapısı
 
 ```
-public/                     → Netlify'ın yayınlayacağı klasör
+public/                     → Cloudflare Pages'in yayınlayacağı klasör
   index.html                → Admin paneli
   service.html              → Servis portalı
+  _redirects                → kısa yollar (/admin, /servis)
+  _headers                  → güvenlik + önbellek başlıkları
   css/admin.css
   css/service.css
   js/firebase-config.js     → ⚠️ Firebase ayarlarınızı + PORTAL_BASE_URL'i buraya yazacaksınız
@@ -26,11 +29,12 @@ public/                     → Netlify'ın yayınlayacağı klasör
   js/print.js               → sayfalı yazdırma (yinelenen başlık + n/N sayfa numarası)
   js/admin.js               → Admin paneli mantığı
   js/service.js             → Servis portalı mantığı
+functions/s/[[token]].js    → /s/<token> kısa linkini service.html'e yönlendirir (URL değişmez)
 firestore.rules             → ⚠️ Yönetici e-postanızı buraya yazacaksınız
 firebase.json / .firebaserc → Kural dağıtımı için
-netlify.toml                → /s/<token> yönlendirmesi + başlıklar
+netlify.toml                → (eski) Netlify yapılandırması, arşiv
 legacy-apps-script/         → Eski Google Apps Script sürümü (arşiv)
-  Yonlendirme.gs            → Eski ?token= linklerini Netlify portalına yönlendirir
+  Yonlendirme.gs            → Eski ?token= linklerini portala yönlendirir
 ```
 
 ---
@@ -90,47 +94,65 @@ legacy-apps-script/         → Eski Google Apps Script sürümü (arşiv)
 
 ---
 
-## 3. Netlify'a yayınlama
+## 3. Cloudflare Pages'e yayınlama
+
+Site **https://dmo-sarf-istek.pages.dev** adresinde yayınlanır (statik site, build adımı yok).
+`public/` klasörü doğrudan yayınlanır; `functions/` klasörü varsa `/s/<token>` kısa linkleri için
+otomatik olarak dahil edilir.
 
 ### A) Git üzerinden (önerilen)
 
 1. Bu klasörü bir Git deposuna gönderin (GitHub/GitLab).
-2. Netlify → **Add new site → Import an existing project** → depoyu seçin.
+2. Cloudflare → **Workers & Pages → Create → Pages → Connect to Git** → depoyu seçin.
 3. Ayarlar:
+   - **Framework preset:** None
    - **Build command:** (boş bırakın)
-   - **Publish directory:** `public`
-   （`netlify.toml` bu ayarları zaten içerir.)
-4. **Deploy**.
+   - **Build output directory:** `public`
+4. **Save and Deploy**.
 
 ### B) Komut satırından (hızlı)
 
 ```powershell
-npx --yes netlify-cli login
-npx --yes netlify-cli deploy --prod --dir=public
+npx --yes wrangler login
+npm run deploy:cf        # wrangler pages deploy public --project-name dmo-sarf-istek
 ```
 
-Yayın adresi: **https://dmo-sarf-istek.netlify.app**
+Yayın adresi: **https://dmo-sarf-istek.pages.dev**
 
-> **Servis linkleri her zaman Netlify adresini gösterir.** Adres
+> **Servis linkleri her zaman yayın adresini gösterir.** Adres
 > `public/js/firebase-config.js` içindeki **`PORTAL_BASE_URL`** değerinde sabitlidir
-> (`https://dmo-sarf-istek.netlify.app`). Bu sayede admin paneli `localhost`'tan veya bir
-> **deploy preview** adresinden açılsa bile üretilen/kopyalanan linkler canlı siteyi gösterir.
+> (`https://dmo-sarf-istek.pages.dev/service?token={token}`). Bu sayede admin paneli
+> `localhost`'tan veya bir önizleme adresinden açılsa bile üretilen/kopyalanan linkler
+> canlı siteyi gösterir.
 
 ### 3.1 Servis linkleri (`PORTAL_BASE_URL`)
 
-Servis linklerinin adresi `public/js/firebase-config.js` içindeki **`PORTAL_BASE_URL`** değerinde
-sabitlidir:
+Servis linklerinin adresi `public/js/firebase-config.js` içindeki **`PORTAL_BASE_URL`**
+değerinde sabitlidir:
 
 ```js
-export const PORTAL_BASE_URL = 'https://dmo-sarf-istek.netlify.app';
+export const PORTAL_BASE_URL = 'https://dmo-sarf-istek.pages.dev/service?token={token}';
 ```
 
-Bu sayede admin paneli `localhost`'tan veya bir **deploy preview** adresinden açılsa bile
-üretilen/kopyalanan linkler her zaman canlı Netlify sitesini gösterir:
+Üretilen link:
 
 ```
-https://dmo-sarf-istek.netlify.app/s/<token>
+https://dmo-sarf-istek.pages.dev/service?token=<token>
 ```
+
+> **Neden `?token=`?** Cloudflare Pages, `/s/<token>` gibi yolları `.html` hedefine yeniden
+> yazarken 308 yönlendirmesi üretip token'ı düşürebiliyor. Sorgu biçimi her sunucuda
+> (Cloudflare, Netlify, yerel önizleme) sorunsuz çalışır.
+
+Kısa `/s/<token>` biçimini de kullanabilirsiniz; bunun için [functions/s/[[token]].js](functions/s/[[token]].js)
+fonksiyonu dağıtılmalı (`npm run deploy:cf` bunu dahil eder) ve `PORTAL_BASE_URL` şöyle olmalıdır:
+
+```js
+export const PORTAL_BASE_URL = 'https://dmo-sarf-istek.pages.dev/s/{token}';
+```
+
+Fonksiyon, URL'yi değiştirmeden `service.html` içeriğini döndürür; `service.js` kodu
+`/s/<token>` yolundan okur. `_redirects` bu yolu **tanımlamaz** (aksine 308'e dönüşür).
 
 Site adresiniz değişirse yalnızca bu satırı güncelleyip yeniden yayınlayın. Boş bırakılırsa
 linkler sayfanın açıldığı adresten üretilir.
@@ -140,7 +162,7 @@ linkler sayfanın açıldığı adresten üretilir.
 > Daha önce dağıtılmış eski Apps Script linkleri (`…/exec?token=…`) gerekiyorsa
 > [legacy-apps-script/Yonlendirme.gs](legacy-apps-script/Yonlendirme.gs) dosyasını eski Apps Script
 > projesine ekleyip mevcut dağıtımı yeni sürümle güncelleyebilirsiniz; `?token=` kodunu okuyup
-> Netlify portalına yönlendirir.
+> portala yönlendirir.
 
 ### Yerel önizleme
 
@@ -171,7 +193,7 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
    `Malzeme Tanımı`, `Taşınır Kodu`, `SutKodu`, `SMT Kodu`, `Branş (Kategori Adı)`.
    (Sütun adları esnek eşlenir; `Taşınır Kodu` boşsa `SutKodu` anahtar olur.)
 4. **Servis Ekle** — her servis için bir link üretilir, 📋 ile kopyalanır.
-   Linkler `https://dmo-sarf-istek.netlify.app/s/<token>` biçimindedir ve adres
+   Linkler `https://dmo-sarf-istek.pages.dev/service?token=<token>` biçimindedir ve adres
    [firebase-config.js](public/js/firebase-config.js) içindeki `PORTAL_BASE_URL` ile sabittir.
 5. **Şartname Yükle** — üç yol var:
    - **📄 Dosya Seç:** birden fazla dosya seçilebilir (Word `.docx`/`.doc` veya PDF).
@@ -397,7 +419,7 @@ olarak görünür; yetki/kota hatasında döngü durur ve tek özet gösterilir
 - Karmaşık Word yerleşimleri (metin kutuları, üstbilgi/altbilgi, alan kodları) birebir çıkmayabilir;
   asıl belge her zaman ⬇ İndir ile alınabilir.
 
-> Daha büyük arşiv gerekiyorsa dosyaları Netlify'ın kendi barındırmasına (Functions + Blobs)
+> Daha büyük arşiv gerekiyorsa dosyaları Cloudflare R2 / Workers KV gibi bir depoya
 > veya Google Drive'a taşıyabilirsiniz; mevcut kod `data.js` içindeki
 > `uploadSartname / readSartname / deleteSartname` fonksiyonları değiştirilerek uyarlanır.
 

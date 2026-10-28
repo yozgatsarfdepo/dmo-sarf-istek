@@ -54,7 +54,7 @@ export function extractToken(raw) {
 }
 
 export function tokenFromLocation() {
-  // 1) /s/<token> biçimindeki adres (Netlify yönlendirmesi)
+  // 1) /s/<token> biçimindeki adres (sunucu yönlendirmesi)
   try {
     const m = String(location.pathname || '').match(/\/s\/([A-Za-z0-9_-]{6,})\/?$/);
     if (m) return cleanToken(m[1]);

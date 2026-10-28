@@ -21,8 +21,15 @@ export function isFirebaseConfigured() {
 export const APP_TITLE = 'A Grubu Tıbbi Sarf Malzeme İstek Sistemi';
 
 // Servis portalı linklerinin adresi.
-// Netlify'da yayınlanan site:  https://dmo-sarf-istek.netlify.app
-// Böylece admin paneli localhost'tan veya bir önizleme (deploy preview) adresinden
-// açılsa bile üretilen servis linkleri her zaman gerçek siteyi gösterir.
+// Cloudflare Pages'te yayınlanan site:  https://dmo-sarf-istek.pages.dev
+// (Eski Netlify adresi: https://dmo-sarf-istek.netlify.app)
+//
+// Cloudflare Pages ".html" hedefli yeniden yazımları 308'e çevirip token'ı düşürdüğü
+// için varsayılan olarak sorgu biçimi kullanılır; bu adres her sunucuda çalışır.
+//   https://dmo-sarf-istek.pages.dev/service?token=<token>
+//
+// Daha kısa "/s/<token>" biçimini istiyorsanız functions/s/[[token]].js fonksiyonunu
+// dağıtıp burayı şöyle değiştirin: 'https://dmo-sarf-istek.pages.dev/s/{token}'
+//
 // Boş bırakılırsa: <sayfanın açıldığı adres>/s/<token>
-export const PORTAL_BASE_URL = 'https://dmo-sarf-istek.netlify.app';
+export const PORTAL_BASE_URL = 'https://dmo-sarf-istek.pages.dev/service?token={token}';

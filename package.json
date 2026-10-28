@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "npx --yes serve public -l 5173",
     "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:cf": "npx --yes wrangler pages deploy public --project-name dmo-sarf-istek",
     "deploy:netlify": "npx --yes netlify-cli deploy --prod --dir=public"
   }
 }

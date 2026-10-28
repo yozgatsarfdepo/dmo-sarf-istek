@@ -330,7 +330,7 @@ async function copyText(text) {
 /* ---- Servis portalı linkleri ---- */
 
 // Linkler her zaman firebase-config.js içindeki PORTAL_BASE_URL adresine göre üretilir
-// (Netlify'da yayınlanan site). Değer boşsa sayfanın açıldığı adres kullanılır.
+// (Cloudflare Pages'te yayınlanan site). Değer boşsa sayfanın açıldığı adres kullanılır.
 //   https://site              → https://site/s/<token>
 //   https://site/s/           → https://site/s/<token>
 //   https://.../exec?token=   → https://.../exec?token=<token>

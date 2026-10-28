@@ -1,5 +1,5 @@
 // ============================================================
-// ESKİ APPS SCRIPT LİNKLERİNİ NETLIFY PORTALINA YÖNLENDİRME
+// ESKİ APPS SCRIPT LİNKLERİNİ YENİ PORTALA YÖNLENDİRME
 // ============================================================
 //
 // Amaç: servislere daha önce gönderilmiş
@@ -9,7 +9,7 @@
 // KURULUM
 // 1) Apps Script projesini açın (eski Google Sheets sürümü).
 // 2) Bu dosyayı "Yonlendirme.gs" adıyla ekleyin, PORTAL_ORIGIN'i kendi
-//    Netlify adresinizle değiştirin.
+//    site adresinizle değiştirin (Cloudflare Pages).
 // 3) Aynı projede eski code.gs dosyasındaki doGet fonksiyonunu silin
 //    (aynı isimde iki fonksiyon olamaz) veya içeriğini bu dosyadakiyle değiştirin.
 // 4) Dağıt → Dağıtımları yönet → mevcut dağıtımı düzenle →
@@ -19,7 +19,7 @@
 // NOT: Bu dosya veri okumaz/yazmaz. Google Sheets artık kullanılmaz;
 //      tüm veriler Firebase'de tutulur.
 
-var PORTAL_ORIGIN = 'https://dmo-sarf-istek.netlify.app';
+var PORTAL_ORIGIN = 'https://dmo-sarf-istek.pages.dev';
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -36,7 +36,7 @@ function doGet(e) {
     );
   }
 
-  var hedef = taban + '/s/' + encodeURIComponent(token);
+  var hedef = taban + '/service?token=' + encodeURIComponent(token);
   return _sayfa('Yönlendiriliyor…', 'Servis portalına yönlendiriliyorsunuz.', hedef);
 }
 
