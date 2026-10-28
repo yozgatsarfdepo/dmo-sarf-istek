@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — A Grubu Sarf İstek</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+
+<!-- ================= KURULUM EKSİK ================= -->
+<div id="setupPanel" class="card hidden">
+  <h2>⚙️ Firebase Kurulumu Gerekli</h2>
+  <p>Uygulama Firebase'e bağlanmadı. <b>public/js/firebase-config.js</b> dosyasını açıp Firebase web uygulama ayarlarınızı girin.</p>
+  <p class="hint">Firebase Konsolu → Proje Ayarları → Genel → Uygulamalar → Web uygulaması → SDK kurulumu → Yapılandırma.</p>
+  <pre class="setup-code">export const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "proje-id.firebaseapp.com",
+  projectId: "proje-id",
+  storageBucket: "proje-id.firebasestorage.app",
+  messagingSenderId: "...",
+  appId: "..."
+};</pre>
+  <p class="hint">Adım adım kurulum için proje kökündeki <b>README.md</b> dosyasına bakın.</p>
+</div>
+
+<!-- ================= GİRİŞ ================= -->
+<div id="loginPanel" class="card login-wrap hidden">
+  <h2>🔐 Yönetici Girişi</h2>
+  <p class="hint">Firebase Authentication (E-posta / Şifre) hesabınızla giriş yapın.</p>
+  <form id="loginForm" autocomplete="on">
+    <label for="loginEmail">E-posta</label>
+    <input type="email" id="loginEmail" autocomplete="username" placeholder="admin@kurum.com">
+    <label for="loginPass">Şifre</label>
+    <input type="password" id="loginPass" autocomplete="current-password" placeholder="••••••••">
+    <button class="btn" type="submit" id="loginBtn">Giriş Yap</button>
+    <button type="button" class="btn btn-gray" id="forgotBtn">Şifremi Unuttum</button>
+  </form>
+  <p class="hint" id="loginError" style="color:#b91c1c; font-weight:600; margin-top:8px;"></p>
+  <p class="hint">Hesap yoksa Firebase Konsolu → Authentication → Kullanıcılar bölümünden oluşturun ve <b>firestore.rules</b> içindeki e-posta listesine ekleyin.</p>
+</div>
+
+<!-- ================= UYGULAMA ================= -->
+<div id="app" class="hidden">
+
+  <div class="topbar">
+    <div class="brand">
+      <button class="btn btn-sm btn-gray" id="sidebarToggle" title="Sol menüyü gizle">«</button>
+      🛠️ A Grubu Sarf İstek <span class="tag">Admin</span>
+    </div>
+    <div class="user">
+      <span id="userEmail"></span>
+      <button class="btn btn-sm btn-gray" id="logoutBtn">Çıkış</button>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- ---------------- SOL PANEL ---------------- -->
+    <aside class="sidebar">
+
+      <section class="card">
+        <div class="card-h">
+          <h2>1 · Dönemler</h2>
+          <span class="badge" id="donemCountBadge">0</span>
+        </div>
+        <div class="row">
+          <input type="text" id="donemAd" placeholder="Dönem adı (ör. 2026 Ağustos)" style="flex:1; min-width:0;">
+        </div>
+        <div class="row" style="margin-top:6px;">
+          <input type="number" id="donemAy" min="1" max="24" step="1" value="4" title="İhale süresi (ay)" style="width:62px;">
+          <span class="small-note" style="margin:0;">aylık ihale</span>
+          <button class="btn btn-sm" id="addDonemBtn" style="margin-left:auto;">➕ Ekle</button>
+        </div>
+        <div id="donemList"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">
+          <h2>2 · Excel</h2>
+          <span class="hint" id="dataStatus" style="font-size:11px;"></span>
+        </div>
+        <div class="row">
+          <label class="btn btn-green btn-sm" style="display:inline-block;">
+            📂 Excel Yükle
+            <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
+          </label>
+        </div>
+        <div class="small-note" style="margin-top:8px;">
+          Aranan sütunlar: <b>Malzeme Tanımı</b>, <b>Taşınır Kodu</b>, <b>SutKodu</b>, <b>SMT Kodu</b>, <b>Branş</b>.
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">
+          <h2>3 · Servisler</h2>
+          <span class="badge" id="svcCountBadge">0</span>
+        </div>
+        <div class="row">
+          <input type="text" id="svcName" placeholder="Servis adı" style="flex:1; min-width:0;">
+          <button class="btn btn-sm" id="addSvcBtn">➕ Ekle</button>
+        </div>
+        <div id="svcList"></div>
+        <div class="small-note" style="margin-top:8px;">📋 ile linki kopyalayın; adı tıklayınca link görünür.</div>
+        <div class="small-note" style="margin-top:4px;">Bağlantıyı açan servis, ihale süresini (aylık) ve taahhüt metnini otomatik görür.</div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">
+          <h2>4 · Şartnameler</h2>
+          <span class="badge" id="sartCountBadge">0</span>
+        </div>
+        <div id="sartDrop" class="drop-zone">
+          <div class="drop-ico">📥</div>
+          <div class="drop-txt"><b>Dosya veya klasörü buraya bırakın</b></div>
+          <div class="small-note">Word (.docx/.doc) ve PDF · alt klasörler dahil · kod dosya <b>veya klasör</b> adından</div>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <label class="btn btn-orange btn-sm" style="display:inline-block;">
+            📄 Dosya Seç
+            <input type="file" id="sartFileInput" accept=".pdf,.doc,.docx,image/*" multiple style="display:none;">
+          </label>
+          <label class="btn btn-sm" style="display:inline-block;">
+            📁 Klasör Seç
+            <input type="file" id="sartFolderInput" webkitdirectory directory multiple style="display:none;">
+          </label>
+          <span class="hint" id="sartStatus" style="font-size:11px;"></span>
+        </div>
+        <input type="text" id="sartKod" placeholder="Tek dosya için SMT kodu (boşsa dosya/klasör adından)" style="width:100%; margin-top:8px;">
+        <label class="sart-check" title="Aynı ad + boyut + tarihli dosyalar yeniden yazılmaz">
+          <input type="checkbox" id="sartAyniAtla" checked>
+          <span>Değişmeyen dosyaları atla</span>
+        </label>
+        <div id="sartList"></div>
+        <div class="small-note" style="margin-top:8px;">
+          Kod, <b>dosya adından</b> veya <b>klasör adından</b> bulunur:<br>
+          <b>SMT1044/derin cerrahi.docx</b> · <b>SMT123-Şartname.docx</b><br>
+          Alt klasörler taranır; kod yoksa dosya atlanır (liste sonunda gösterilir).<br>
+          Dosyalar Firestore'da saklanır — 1 GB ücretsiz, kredi kartı gerekmez.
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- ---------------- SAĞ İÇERİK ---------------- -->
+    <main class="content">
+
+      <div id="emptyState" class="empty-state">
+        <div class="big">📁</div>
+        <div><b>Henüz dönem seçilmedi</b></div>
+        <div class="hint">Soldaki panelden bir dönem oluşturun veya açın.</div>
+      </div>
+
+      <section id="donemPanel" class="workspace hidden">
+        <div class="ws-head">
+          <div class="title">
+            <div class="name" id="donemHeaderAd">—</div>
+            <div class="meta" id="donemHeaderMeta">—</div>
+          </div>
+          <div class="ws-tools">
+            <input type="text" id="mainFilter" class="filter-input" placeholder="🔍 malzeme ara...">
+            <button class="btn btn-sm btn-gray" id="clearColFiltersBtn" title="Sütun filtrelerini temizle">🧹 Filtre</button>
+            <button class="btn btn-sm btn-gray" id="donemAyarBtn" title="Dönem adı ve ihale süresini düzenle">✏️ Dönem</button>
+            <button class="btn btn-sm btn-green" id="exportXlsxBtn">⬇️ Excel</button>
+            <button class="btn btn-sm btn-orange" id="ciktiBtn" title="Servisler dahil / hariç çıktı al">🖨 Çıktı</button>
+            <span class="sep"></span>
+            <span class="badge" id="rowBadge"></span>
+            <span class="badge" id="grandBadge" style="background:#fef3c7; color:#92400e;"></span>
+            <span class="sep"></span>
+            <button class="btn btn-sm btn-red" id="deleteDonemBtn" title="Dönemi sil">🗑</button>
+          </div>
+        </div>
+
+        <div class="table-wrap" id="tableWrap">
+          <table id="mainTable">
+            <colgroup id="mainCols"></colgroup>
+            <thead id="mainThead"></thead>
+            <tbody id="mainTbody"></tbody>
+            <tfoot id="mainTfoot"></tfoot>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+<script type="module" src="/js/admin.js"></script>
+</body>
+</html>

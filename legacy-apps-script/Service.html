@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Servis Portalı — A Grubu Sarf İstek</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family:'Segoe UI',Tahoma,sans-serif; margin:0; padding:16px; background:#f4f6f9; color:#1f2937; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  h2 { font-size:15px; margin:18px 0 8px; color:#1e40af; border-bottom:2px solid #dbeafe; padding-bottom:4px; }
+  .panel { background:#fff; border-radius:8px; padding:14px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button { cursor:pointer; border:none; border-radius:6px; padding:8px 14px; font-size:13px; font-weight:600; }
+  .btn { background:#1e40af; color:#fff; } .btn:hover{ background:#1e3a8a; }
+  .btn-green{ background:#15803d; color:#fff; } .btn-green:hover{ background:#166534; }
+  .btn-red{ background:#b91c1c; color:#fff; } .btn-red:hover{ background:#7f1d1d; }
+  .btn-gray{ background:#e5e7eb; color:#111827; } .btn-gray:hover{ background:#d1d5db; }
+  .btn-orange{ background:#c2410c; color:#fff; } .btn-orange:hover{ background:#9a3412; }
+  .btn-sm{ padding:4px 8px; font-size:12px; }
+  input, select { padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; }
+  th, td { border:1px solid #d1d5db; padding:4px 6px; text-align:left; }
+  th { background:#1e40af; color:#fff; font-weight:600; position:sticky; top:0; }
+  tr:nth-child(even){ background:#f8fafc; }
+  .badge{ background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:999px; font-size:11px; font-weight:600; }
+  .hint{ font-size:12px; color:#6b7280; }
+  .hidden{ display:none !important; }
+  #toast{ position:fixed; bottom:20px; right:20px; background:#111827; color:#fff; padding:10px 16px; border-radius:6px; font-size:13px; opacity:0; transition:opacity .3s; z-index:9999; }
+  #toast.show{ opacity:1; }
+  .filter-input{ width:220px; }
+  .svc-header{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:linear-gradient(90deg,#1e40af,#3b82f6); color:#fff; padding:12px 16px; border-radius:8px; margin-bottom:14px; }
+  .svc-header .name{ font-size:16px; font-weight:700; }
+  .svc-header .sub{ font-size:12px; opacity:.9; }
+  .donem-badge{ background:#fbbf24; color:#78350f; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px; display:inline-block; margin-bottom:8px; }
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:1000; }
+  .modal{ background:#fff; border-radius:8px; padding:20px; width:380px; max-width:90vw; box-shadow:0 10px 40px rgba(0,0,0,.3); }
+  .modal h3{ margin:0 0 10px; font-size:16px; }
+  .modal .mat-info{ font-size:12px; color:#475569; margin-bottom:10px; padding:8px; background:#f1f5f9; border-radius:4px; }
+  .modal .actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+  .signature-box{ border:1.5px solid #334155; border-radius:6px; height:95px; flex:1; min-width:180px; padding:8px; position:relative; background:#fff; }
+  .signature-box .lbl{ position:absolute; top:4px; left:8px; font-size:10px; font-weight:700; color:#475569; }
+  .signature-box .sub{ position:absolute; bottom:6px; left:8px; right:8px; font-size:10px; color:#64748b; border-top:1px dashed #cbd5e1; padding-top:3px; }
+  .sig-container{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .print-header{ text-align:center; margin-bottom:10px; }
+  .print-header h3{ margin:0; font-size:15px; }
+  .print-header p{ margin:2px 0; font-size:12px; }
+  @media print {
+    body{ background:#fff; padding:0; }
+    .no-print{ display:none !important; }
+    .panel{ box-shadow:none; border:1px solid #ddd; }
+    .svc-header{ background:#1e40af !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .signature-box{ height:110px; }
+    @page{ size:A4 landscape; margin:10mm; }
+  }
+</style>
+</head>
+<body data-token="<?= token ?>">
+
+<div id="tokenPanel" class="panel no-print hidden">
+  <h2>🔗 Bağlantı Eksik</h2>
+  <p class="hint">Bu sayfa servis linki (token) olmadan açıldı. Size gönderilen servis linkini veya linkin sonundaki kodu aşağıya yapıştırın.</p>
+  <div class="row">
+    <input type="text" id="manualToken" placeholder="https://.../exec?token=... veya sadece kod" style="min-width:340px;">
+    <button class="btn" id="manualTokenBtn">Devam</button>
+  </div>
+  <p class="hint" id="manualTokenMsg" style="color:#b91c1c;"></p>
+</div>
+
+<div id="errorPanel" class="panel hidden">
+  <h2>❌ Bağlantı Geçersiz</h2>
+  <p id="errorText" style="color:#b91c1c; font-weight:600;"></p>
+  <p class="hint" id="errorToken"></p>
+  <p class="hint">Lütfen Admin panelindeki güncel servis linkini kullanın. Sorun sürüyorsa link yeniden oluşturulmalı (Admin → Servis Tanımları).</p>
+  <button class="btn btn-gray" id="errorRetryBtn">Farklı bir link dene</button>
+</div>
+
+<div id="loginPanel" class="panel no-print hidden">
+  <h2>🔐 Servis Girişi (zorunlu)</h2>
+  <div id="donemInfo" class="donem-badge hidden"></div>
+  <p class="hint">Devam etmek için aşağıdan servisinizi seçin.</p>
+  <div class="row">
+    <label>Servis:</label>
+    <select id="loginService" style="min-width:280px;">
+      <option value="">— Yükleniyor... —</option>
+    </select>
+    <button class="btn" id="loginBtn" disabled>Giriş Yap</button>
+  </div>
+  <p class="hint" id="loginMsg" style="color:#b45309; font-weight:600; margin:8px 0 0;"></p>
+</div>
+
+<div id="app" class="hidden">
+  <div class="svc-header">
+    <div>
+      <div class="name" id="svcName">—</div>
+      <div class="sub" id="donemAd">—</div>
+    </div>
+    <div class="no-print">
+      <button class="btn btn-sm btn-gray" id="changeSvcBtn">🔄 Servisi Değiştir</button>
+      <button class="btn btn-sm btn-gray" id="printBtn">🖨️ Yazdır</button>
+      <label style="color:#fff; font-size:12px; margin-left:8px;">İmza Kutusu:</label>
+      <input type="number" id="sigCount" value="2" min="0" max="10" style="width:60px;">
+    </div>
+  </div>
+
+  <div class="panel no-print">
+    <h2>📋 Malzeme Listesi</h2>
+    <div class="row" style="margin-bottom:8px;">
+      <label>Branş Seç:</label>
+      <select id="bransSelect" style="min-width:260px;"></select>
+      <label style="margin-left:12px;">Ara:</label>
+      <input type="text" id="matFilter" class="filter-input" placeholder="kod veya tanım...">
+      <span id="countBadge" class="badge"></span>
+    </div>
+    <div style="overflow:auto; max-height:500px;">
+      <table id="listTable">
+        <thead>
+          <tr>
+            <th>#</th><th>SutKodu</th><th>Taşınır Kodu</th><th>Malzeme Tanımı</th><th>SMT</th>
+            <th>Branş(lar)</th><th>Şartname</th><th>İşlem</th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>✅ İsteklerim</h2>
+    <div style="overflow:auto;">
+      <table id="myTable">
+        <thead>
+          <tr><th>#</th><th>SutKodu</th><th>Taşınır Kodu</th><th>Malzeme Tanımı</th><th>Miktar</th><th>Tarih / Saat</th><th class="no-print">Sil</th></tr>
+        </thead>
+        <tbody id="myBody"></tbody>
+        <tfoot id="myFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(n){ return (n===undefined||n===null||isNaN(n))?'':Number(n).toLocaleString('tr-TR'); }
+
+// --- Token Çözümleme ---
+let TOKEN = "";
+const TOKEN_RE = /^[A-Za-z0-9_-]{6,}$/;
+
+function cleanToken(v){
+  const s = String(v == null ? '' : v).trim();
+  return TOKEN_RE.test(s) ? s : '';
+}
+
+// Kullanıcı tam link de yapıştırabilir, sadece kod da
+function extractToken(raw){
+  const s = String(raw == null ? '' : raw).trim();
+  const m = s.match(/[?&#](?:token|s)=([A-Za-z0-9_-]+)/i);
+  if (m) return cleanToken(m[1]);
+  if (/^(?:https?:\/\/)/i.test(s)) return '';
+  return cleanToken(s);
+}
+
+function tokenFromWindow(){
+  try {
+    const q = new URLSearchParams(window.location.search || '');
+    const a = cleanToken(q.get('token')) || cleanToken(q.get('s'));
+    if (a) return a;
+  } catch(e) {}
+  try {
+    const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
+    return cleanToken(h.get('token')) || cleanToken(h.get('s'));
+  } catch(e) {}
+  return '';
+}
+
+function resolveToken(cb){
+  // 1) Sunucunun HTML'e gömdüğü token (en güvenilir yol)
+  const injected = cleanToken(document.body.getAttribute('data-token'));
+  if (injected) return cb(injected);
+
+  // 2) Adres çubuğu
+  const fromWindow = tokenFromWindow();
+  if (fromWindow) return cb(fromWindow);
+
+  // 3) Apps Script URL API'si
+  let called = false;
+  const done = v => { if (called) return; called = true; cb(cleanToken(v)); };
+  try {
+    if (typeof google !== 'undefined' && google.script && google.script.url) {
+      google.script.url.getLocation(loc => {
+        const p = (loc && loc.parameter) || {};
+        done(p.token || p.s || '');
+      });
+      setTimeout(() => done(''), 4000); // cevap gelmezse takılma
+      return;
+    }
+  } catch(e) {}
+  done('');
+}
+
+let STATE = { donem:null, service:null, materials:[], branslar:[], requests:{}, requestInfo:{}, selectedServiceId:null };
+
+function showTokenPanel(){
+  $('app').classList.add('hidden');
+  $('loginPanel').classList.add('hidden');
+  $('errorPanel').classList.add('hidden');
+  $('tokenPanel').classList.remove('hidden');
+}
+
+function showError(msg){
+  $('app').classList.add('hidden');
+  $('loginPanel').classList.add('hidden');
+  $('tokenPanel').classList.add('hidden');
+  $('errorPanel').classList.remove('hidden');
+  $('errorText').textContent = 'Hata: ' + msg;
+  $('errorToken').textContent = TOKEN ? 'Kullanılan link kodu: ' + TOKEN : '';
+}
+
+function boot(){
+  resolveToken(token => {
+    TOKEN = token;
+    if (!TOKEN) { showTokenPanel(); return; }
+    loadService();
+  });
+}
+
+function loadService(){
+  $('tokenPanel').classList.add('hidden');
+  $('errorPanel').classList.add('hidden');
+  $('loginPanel').classList.remove('hidden');
+  $('loginBtn').disabled = true;
+
+  google.script.run
+    .withSuccessHandler(j => {
+      if (!j || j.error) { 
+        showError(j ? j.error : 'Sunucudan veri dönmedi');
+        return; 
+      }
+      
+      STATE.donem = j.donem; STATE.service = j.service; STATE.materials = j.materials;
+      STATE.branslar = j.branslar; STATE.requests = j.requests;
+      STATE.requestInfo = j.requestInfo || {};
+
+      const svcName = String((j.service && j.service.name) || '').trim();
+      const nameMissing = !!j.nameMissing || !svcName;
+      const svcLabel = nameMissing ? 'Servis (ad tanımsız)' : svcName;
+
+      $('donemInfo').textContent = '📅 ' + j.donem.ad;
+      $('donemInfo').classList.remove('hidden');
+
+      $('loginService').innerHTML = `<option value="${esc(j.service.id)}">${esc(svcLabel)}</option>`;
+      $('loginMsg').textContent = nameMissing ? '⚠️ Bu servisin adı Google Sheets > Servisler sekmesinde boş. Admin panelinden "✏️" ile ad verebilirsiniz.' : '';
+      
+      // Giriş butonunu aktif et
+      $('loginBtn').disabled = false;
+      
+      $('loginBtn').onclick = () => {
+        STATE.selectedServiceId = $('loginService').value;
+        $('svcName').textContent = svcLabel; 
+        $('donemAd').textContent = '📅 ' + j.donem.ad;
+        
+        $('bransSelect').innerHTML = `<option value="">Tümü</option>` + STATE.branslar.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+        
+        $('loginPanel').classList.add('hidden');
+        $('app').classList.remove('hidden');
+        renderList();
+        renderMy();
+      };
+    })
+    .withFailureHandler(err => {
+      showError('Bağlantı hatası: ' + (err && err.message ? err.message : err)); 
+    })
+    .apiGetServiceData(TOKEN);
+}
+
+$('manualTokenBtn').onclick = () => {
+  const t = extractToken($('manualToken').value);
+  if (!t) { $('manualTokenMsg').textContent = 'Geçerli bir link veya kod girin.'; return; }
+  $('manualToken').value = '';
+  $('manualTokenMsg').textContent = '';
+  TOKEN = t;
+  try { history.replaceState(null, '', '?token=' + encodeURIComponent(t)); } catch(e) {}
+  loadService();
+};
+
+$('manualToken').addEventListener('keydown', e => { if (e.key === 'Enter') $('manualTokenBtn').click(); });
+
+$('errorRetryBtn').onclick = () => {
+  TOKEN = '';
+  $('manualTokenMsg').textContent = '';
+  showTokenPanel();
+};
+
+function renderList(){
+  const brans = $('bransSelect').value;
+  const filter = ($('matFilter').value||'').toLowerCase();
+  const body = $('listBody');
+  let html = '', i = 0;
+  
+  for (const m of STATE.materials){
+    if (brans && !m.branslar.includes(brans)) continue;
+    const searchStr = `${m.tanim||''} ${m.sutKodu||''} ${m.tasinirKodu||''} ${m.smtKodu||''}`.toLowerCase();
+    if (filter && !searchStr.includes(filter)) continue;
+    i++;
+    const mevcut = STATE.requests[m.key]?.[STATE.selectedServiceId];
+    const sartBtn = m.smtKodu ? `<button class="btn btn-sm btn-orange" onclick="sartnameIndir('${esc(m.smtKodu)}')">📄</button>` : '—';
+    
+    html += `<tr>
+      <td>${i}</td><td>${esc(m.sutKodu)}</td><td>${esc(m.tasinirKodu)}</td><td>${esc(m.tanim)}</td>
+      <td>${esc(m.smtKodu)}</td><td style="font-size:11px;">${esc(m.branslar.join(', '))}</td>
+      <td style="text-align:center;">${sartBtn}</td>
+      <td style="text-align:center;">
+        <button class="btn btn-sm btn-green" onclick="openAmountModal('${esc(m.key)}')">
+          ${mevcut ? '✏️ Güncelle' : '➕ Ekle'}
+        </button>
+      </td>
+    </tr>`;
+  }
+  body.innerHTML = html || '<tr><td colspan="8" style="text-align:center;">Kayıt yok</td></tr>';
+  $('countBadge').textContent = i + ' malzeme';
+}
+
+function openAmountModal(key){
+  const m = STATE.materials.find(x => x.key === key); if (!m) return;
+  const mevcut = STATE.requests[m.key]?.[STATE.selectedServiceId] || '';
+  const root = $('modalRoot');
+  
+  root.innerHTML = `<div class="modal-backdrop">
+    <div class="modal">
+      <h3>Miktar Gir</h3>
+      <div class="mat-info"><div>${esc(m.tanim)}</div></div>
+      <label>İstenen Miktar (ADET):</label>
+      <input type="number" id="modalAmt" min="1" step="1" value="${mevcut||''}" style="width:100%; margin-top:4px; font-size:16px; padding:8px;">
+      <div class="actions">
+        <button class="btn btn-gray" onclick="$('modalRoot').innerHTML=''">İptal</button>
+        <button class="btn btn-green" onclick="kaydetModal('${key}')">✅ Onayla</button>
+      </div>
+    </div>
+  </div>`;
+  setTimeout(()=>$('modalAmt').focus(), 50);
+}
+
+function kaydetModal(key) {
+  const v = Number($('modalAmt').value);
+  if (!v || v <= 0) { toast('Geçerli bir miktar girin'); return; }
+  
+  google.script.run.withSuccessHandler(res => {
+    if (res && res.error) { toast(res.error); return; }
+    STATE.requests[key] = STATE.requests[key] || {};
+    STATE.requests[key][STATE.selectedServiceId] = v;
+    STATE.requestInfo[key] = STATE.requestInfo[key] || {};
+    STATE.requestInfo[key][STATE.selectedServiceId] = { miktar: v, tarih: (res && res.tarih) || new Date().toISOString() };
+    $('modalRoot').innerHTML = '';
+    toast('İstek kaydedildi');
+    renderList();
+    renderMy();
+  }).apiSaveRequest(TOKEN, key, v);
+}
+
+function fmtTs(v){
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function renderMy(){
+  const body = $('myBody'), foot = $('myFoot');
+  let html = '', total = 0, i = 0;
+  const rows = [];
+  for (const m of STATE.materials){
+    const v = STATE.requests[m.key]?.[STATE.selectedServiceId];
+    if (!v) continue;
+    const rec = STATE.requestInfo[m.key]?.[STATE.selectedServiceId];
+    rows.push({ ...m, miktar:Number(v), tarih: rec ? rec.tarih : '' });
+    total += Number(v);
+  }
+  rows.forEach(r => {
+    i++;
+    html += `<tr>
+      <td>${i}</td><td>${esc(r.sutKodu)}</td><td>${esc(r.tasinirKodu)}</td><td>${esc(r.tanim)}</td>
+      <td style="text-align:right;">${fmt(r.miktar)}</td>
+      <td style="text-align:center; font-size:11px; white-space:nowrap;">${esc(fmtTs(r.tarih))}</td>
+      <td style="text-align:center;" class="no-print"><button class="btn btn-sm btn-red" onclick="istekSil('${r.key}')">🗑</button></td>
+    </tr>`;
+  });
+  body.innerHTML = html || '<tr><td colspan="7" style="text-align:center;">Henüz istek yok</td></tr>';
+  foot.innerHTML = `<tr class="total-row"><td colspan="4" style="text-align:right;">TOPLAM</td><td style="text-align:right;">${total?fmt(total):''}</td><td></td><td class="no-print"></td></tr>`;
+}
+
+function istekSil(key) {
+  if (!confirm('Bu istek silinsin mi?')) return;
+  google.script.run.withSuccessHandler(res => {
+    if (res && res.error) { toast(res.error); return; }
+    if (STATE.requests[key]) delete STATE.requests[key][STATE.selectedServiceId];
+    if (STATE.requestInfo[key]) delete STATE.requestInfo[key][STATE.selectedServiceId];
+    toast('Silindi');
+    renderList();
+    renderMy();
+  }).apiDeleteRequest(TOKEN, key);
+}
+
+$('printBtn').onclick = () => {
+  const sigN = Math.max(0, Math.min(10, parseInt($('sigCount').value)||0));
+  const rows = [];
+  let total = 0;
+  for (const m of STATE.materials){
+    const v = STATE.requests[m.key]?.[STATE.selectedServiceId];
+    if (!v) continue;
+    rows.push({ ...m, miktar:Number(v) });
+    total += Number(v);
+  }
+  if (!rows.length) return toast('İstek yok');
+  rows.sort((a,b)=> (a.tanim||'').localeCompare(b.tanim||'','tr'));
+  
+  const labels = ['SERVİS SORUMLUSU','DOKTOR'];
+  let sigs = '';
+  for (let i=0;i<sigN;i++) sigs += `<div class="signature-box"><span class="lbl">${esc(labels[i]||('İMZA '+(i+1)))}</span><div class="sub">İmza / Kaşe</div></div>`;
+  
+  const rowsHtml = rows.map((r,i)=>`<tr>
+    <td style="text-align:center;">${i+1}</td><td>${esc(r.sutKodu)}</td><td>${esc(r.tasinirKodu)}</td><td>${esc(r.tanim)}</td>
+    <td style="text-align:center;">ADET</td><td style="text-align:right;">${fmt(r.miktar)}</td>
+  </tr>`).join('');
+
+  const printSvcName = String((STATE.service && STATE.service.name) || '').trim() || 'Servis';
+  const html = `<div style="font-family:'Segoe UI',Tahoma,sans-serif;">
+    <div class="print-header">
+      <h3>T.C. SAĞLIK BAKANLIĞI — YOZGAT ŞEHİR HASTANESİ</h3>
+      <p><b>${esc(printSvcName)}</b> — A Grubu Tıbbi Sarf Malzeme İsteği</p>
+      <p>${esc(STATE.donem.ad)} · Tarih: ${new Date().toLocaleDateString('tr-TR')}</p>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>SutKodu</th><th>Taşınır Kodu</th><th>Malzeme Tanımı</th><th>Birim</th><th>Miktar</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot><tr class="total-row"><td colspan="5" style="text-align:right;">TOPLAM</td><td style="text-align:right;">${fmt(total)}</td></tr></tfoot>
+    </table>
+    <div class="sig-container">${sigs}</div>
+  </div>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>Yazdır</title>
+    <style>
+      body{ font-family:'Segoe UI',Tahoma,sans-serif; padding:10mm; }
+      table{ width:100%; border-collapse:collapse; font-size:12px; }
+      th,td{ border:1px solid #333; padding:4px 6px; text-align:left; }
+      th{ background:#1e40af; color:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .total-row td{ background:#fef3c7; font-weight:700; }
+      .signature-box{ border:1.5px solid #334155; border-radius:6px; height:110px; flex:1; min-width:180px; padding:8px; position:relative; background:#fff; }
+      .signature-box .lbl{ position:absolute; top:4px; left:8px; font-size:10px; font-weight:700; color:#475569; }
+      .signature-box .sub{ position:absolute; bottom:6px; left:8px; right:8px; font-size:10px; color:#64748b; border-top:1px dashed #cbd5e1; padding-top:3px; }
+      .sig-container{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+      .print-header{ text-align:center; margin-bottom:10px; }
+      .print-header h3{ margin:0; font-size:15px; }
+      .print-header p{ margin:2px 0; font-size:12px; }
+      @page{ size:A4 landscape; margin:10mm; }
+    </style></head><body>${html}</body></html>`);
+  w.document.close();
+  setTimeout(()=>{ w.focus(); w.print(); }, 300);
+};
+
+$('bransSelect').addEventListener('change', renderList);
+$('matFilter').addEventListener('input', renderList);
+
+function sartnameIndir(smtKodu) {
+  google.script.run.withSuccessHandler(res => {
+    if (res.success) {
+      const a = document.createElement('a');
+      a.href = res.url; a.download = res.dosyaAdi;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } else { alert(res.error); }
+  }).apiGetSartname(smtKodu);
+}
+
+boot();
+</script>
+</body>
+</html>

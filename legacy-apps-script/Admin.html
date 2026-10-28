@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Admin — A Grubu Sarf İstek</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  /* SİZİN ORİJİNAL CSS KODLARINIZ (Aynen korundu) */
+  * { box-sizing: border-box; }
+  body { font-family:'Segoe UI',Tahoma,sans-serif; margin:0; padding:16px; background:#f4f6f9; color:#1f2937; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  h2 { font-size:15px; margin:18px 0 8px; color:#1e40af; border-bottom:2px solid #dbeafe; padding-bottom:4px; }
+  .panel { background:#fff; border-radius:8px; padding:14px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button { cursor:pointer; border:none; border-radius:6px; padding:8px 14px; font-size:13px; font-weight:600; }
+  .btn { background:#1e40af; color:#fff; } .btn:hover{ background:#1e3a8a; }
+  .btn-green{ background:#15803d; color:#fff; } .btn-green:hover{ background:#166534; }
+  .btn-red{ background:#b91c1c; color:#fff; } .btn-red:hover{ background:#7f1d1d; }
+  .btn-gray{ background:#e5e7eb; color:#111827; } .btn-gray:hover{ background:#d1d5db; }
+  .btn-orange{ background:#c2410c; color:#fff; } .btn-orange:hover{ background:#9a3412; }
+  .btn-sm{ padding:4px 8px; font-size:12px; }
+  input, select { padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; }
+  /* Tablonun genel yapısı */
+  table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; table-layout: fixed; }
+  
+  /* Hücrelerin taşmasını engelle ve başlıkları hizala */
+  th, td { 
+    border:1px solid #d1d5db; 
+    padding:4px 6px; 
+    text-align:left; 
+    word-wrap: break-word; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+  }
+  
+  /* Sol taraftaki 3 ana sütunun genişliğini SABİTLİYORUZ */
+  #mainTable th:nth-child(1) { width: 100px; } /* SutKodu */
+  #mainTable th:nth-child(2) { width: 130px; } /* Taşınır Kodu */
+  #mainTable th:nth-child(3) { width: 320px; } /* Malzeme Tanımı (yeşil okun bittiği yer) */
+  #mainTable th:nth-child(4) { width: 80px; }  /* SMT Kodu */
+  #mainTable th:nth-child(5) { width: 70px; }  /* Şartname */
+
+  /* Sağdaki dinamik servis sütunları ve TOPLAM */
+  #mainTable th:nth-child(n+6) { 
+    width: auto; 
+    min-width: 80px; 
+    text-align: center; 
+  }
+  th, td { border:1px solid #d1d5db; padding:4px 6px; text-align:left; }
+  th { background:#1e40af; color:#fff; font-weight:600; position:sticky; top:0; }
+  tr:nth-child(even){ background:#f8fafc; }
+  .amount-input{ width:70px; padding:3px 5px; text-align:right; border:1px solid #cbd5e1; border-radius:3px; }
+  .cell-ts{ font-size:9px; color:#64748b; margin-top:2px; white-space:nowrap; }
+  #mainTable thead th.sortable{ cursor:pointer; user-select:none; }
+  #mainTable thead th.sortable:hover{ background:#1e3a8a; }
+  #mainTable thead th .sort-ind{ font-size:9px; opacity:.9; }
+  #mainTable .filter-row th{ background:#e0e7ff; color:#1e293b; position:sticky; top:25px; z-index:2; padding:2px 3px; }
+  #mainTable .filter-row select{ width:100%; font-size:10px; padding:1px 2px; }
+  .toolbar-sub{ font-size:11px; color:#6b7280; }
+  .total-row td{ background:#fef3c7; font-weight:700; border-top:2px solid #f59e0b; }
+  .badge{ background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:999px; font-size:11px; font-weight:600; }
+  .badge-active{ background:#15803d; color:#fff; }
+  .donem-item{ display:flex; justify-content:space-between; align-items:center; border:1px solid #e5e7eb; border-radius:6px; padding:8px 12px; margin-bottom:6px; background:#fafafa; gap:8px; cursor:pointer; }
+  .donem-item:hover{ background:#eff6ff; border-color:#93c5fd; }
+  .donem-item.active{ background:#dbeafe; border-color:#1e40af; font-weight:600; }
+  .donem-item .left{ flex:1; }
+  .donem-item .ad{ font-weight:600; color:#1e293b; }
+  .donem-item .info{ font-size:11px; color:#64748b; margin-top:2px; }
+  .svc-list-item{ display:flex; justify-content:space-between; align-items:center; border:1px solid #e5e7eb; border-radius:6px; padding:6px 10px; margin-bottom:4px; background:#fafafa; font-size:12px; gap:8px; }
+  .svc-list-item .name{ font-weight:600; }
+  .svc-list-item .url{ font-size:11px; color:#475569; font-family:monospace; background:#f1f5f9; padding:2px 6px; border-radius:4px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hint{ font-size:12px; color:#6b7280; }
+  .hidden{ display:none !important; }
+  #toast{ position:fixed; bottom:20px; right:20px; background:#111827; color:#fff; padding:10px 16px; border-radius:6px; font-size:13px; opacity:0; transition:opacity .3s; z-index:9999; }
+  #toast.show{ opacity:1; }
+  .filter-input{ width:200px; }
+  .small-note{ font-size:11px; color:#6b7280; margin-top:4px; }
+  .donem-header{ background:linear-gradient(90deg,#1e40af,#3b82f6); color:#fff; padding:12px 16px; border-radius:8px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  .donem-header .ad{ font-size:16px; font-weight:700; }
+  .donem-header .meta{ font-size:12px; opacity:.9; }
+  /* Tablo sütun genişliklerini sabitleme */
+  #mainTable { table-layout: fixed; width: 100%; }
+  #mainTable th, #mainTable td { 
+    white-space: normal; 
+    word-wrap: break-word; 
+    overflow: hidden; 
+    text-overflow: ellipsis; /* Uzun yazıları ... şeklinde kısaltır */
+  }
+  
+  /* Sütun genişlikleri */
+  #mainTable th:nth-child(1) { width: 100px; } /* Sut Kodu */
+  #mainTable th:nth-child(2) { width: 130px; } /* Taşınır Kodu */
+  #mainTable th:nth-child(3) { width: 30%; }   /* Malzeme Tanımı (esnek) */
+  #mainTable th:nth-child(4) { width: 90px; }  /* SMT Kodu */
+  #mainTable th:nth-child(5) { width: 80px; }  /* Şartname */
+  /* Dinamik servis sütunları ve TOPLAM sütunu için minimum genişlik */
+  #mainTable th:nth-child(n+6) { min-width: 70px; }
+</style>
+</head>
+<body>
+
+<h1>🛠️ Admin — A Grubu Tıbbi Sarf Malzeme İstek Sistemi</h1>
+<p class="hint">Dönem oluşturun → Excel yükleyin → Servis tanımlayın → Linkleri paylaşın.</p>
+
+<div class="panel">
+  <h2>1) Dönemler</h2>
+  <div class="row" style="margin-bottom:8px;">
+    <input type="text" id="donemAd" placeholder="Dönem adı (ör. A Grubu - Ağustos 2026)" style="min-width:340px;">
+    <button class="btn" id="addDonemBtn">➕ Yeni Dönem Oluştur</button>
+  </div>
+  <div id="donemList"></div>
+  <div class="small-note">Her dönem bağımsızdır. Geçmiş dönemler korunur.</div>
+</div>
+
+<div id="donemPanel" class="hidden">
+  <div class="donem-header">
+    <div>
+      <div class="ad" id="donemHeaderAd">—</div>
+      <div class="meta" id="donemHeaderMeta">—</div>
+    </div>
+    <div>
+      <button class="btn btn-sm btn-red" id="deleteDonemBtn">🗑 Dönemi Sil</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>2) Veri Kaynağı (Excel)</h2>
+    <div class="row">
+      <label class="btn btn-green" style="display:inline-block;">
+        📂 Excel Yükle
+        <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
+      </label>
+      <span id="dataStatus" class="hint"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>3) Servis Tanımları</h2>
+    <div class="row" style="margin-bottom:8px;">
+      <input type="text" id="svcName" placeholder="Servis adı (ör. Ameliyathane)" style="min-width:260px;">
+      <button class="btn" id="addSvcBtn">➕ Servis Ekle</button>
+    </div>
+    <div id="svcList"></div>
+  </div>
+
+  <div class="panel">
+    <h2>4) Ana İstek Tablosu</h2>
+    <div class="row" style="margin-bottom:8px;">
+      <label>Filtre:</label>
+      <input type="text" id="mainFilter" class="filter-input" placeholder="malzeme ara...">
+      <button class="btn btn-sm btn-gray" id="clearColFiltersBtn">🧹 Sütun Filtrelerini Temizle</button>
+      <button class="btn btn-sm btn-green" id="exportXlsxBtn">⬇️ Excel İndir</button>
+      <span id="grandBadge" class="badge"></span>
+      <span id="rowBadge" class="badge"></span>
+    </div>
+    <div class="toolbar-sub" style="margin-bottom:6px;">Sıralamak için sütun başlığına tıklayın. Sütun başlığının altındaki kutudan <b>Dolu / Boş</b> filtreleyebilirsiniz.</div>
+    <div style="overflow:auto; max-height:600px;">
+      <table id="mainTable">
+        <thead id="mainThead"></thead>
+        <tbody id="mainTbody"></tbody>
+        <tfoot id="mainTfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(n){ return (n===undefined||n===null||isNaN(n))?'':Number(n).toLocaleString('tr-TR'); }
+
+let STATE = { donemler: [], activeDonemId: null, donem: null, baseUrl: '' };
+
+// Yayındaki dağıtımın adresi (sunucudan alınır, alınamazsa sabit adres)
+const DEFAULT_ORIGIN = "https://script.google.com/macros/s/AKfycbzhwhsMp-fuKx_OD4RIDVfkOeTohFMzHc57UuguLRyyMgNBrq5f667vBoaBvUa0WM3U/exec";
+
+function loadBaseUrl(){
+  google.script.run
+    .withSuccessHandler(url => {
+      const u = String(url || '').trim();
+      if (u) STATE.baseUrl = u;
+      if (STATE.donem) renderServices();
+    })
+    .withFailureHandler(() => {})
+    .apiGetBaseUrl();
+}
+
+// GAS BAĞLANTILARI
+function loadDonemler(){
+  google.script.run.withSuccessHandler(data => {
+    STATE.donemler = data;
+    renderDonemList();
+  }).apiGetDonemler();
+}
+
+function renderDonemList(){
+  const el = $('donemList');
+  if (!STATE.donemler.length){ el.innerHTML = '<div class="hint">Henüz dönem yok. Yukarıdan oluşturun.</div>'; return; }
+  el.innerHTML = STATE.donemler.map(d => `
+    <div class="donem-item ${d.id===STATE.activeDonemId?'active':''}" onclick="openDonem('${d.id}')">
+      <div class="left">
+        <div class="ad">${esc(d.ad)} ${d.id===STATE.activeDonemId?'<span class="badge badge-active">AKTİF</span>':''}</div>
+        <div class="info">${d.materials} malzeme · ${d.branslar} branş · ${d.services} servis · ${new Date(d.createdAt).toLocaleString('tr-TR')}</div>
+      </div>
+      <button class="btn btn-sm btn-gray">Aç</button>
+    </div>`).join('');
+}
+
+function openDonem(id){
+  STATE.activeDonemId = id;
+  STATE.sortKey = '';
+  STATE.sortDir = 1;
+  STATE.colFilters = {};
+  google.script.run.withSuccessHandler(donem => {
+    STATE.donem = donem;
+    $('donemPanel').classList.remove('hidden');
+    $('donemHeaderAd').textContent = donem.ad;
+    $('donemHeaderMeta').textContent = `${donem.materials.length} malzeme · ${donem.branslar.length} branş · ${donem.services.length} servis`;
+    $('dataStatus').textContent = donem.materials.length ? `${donem.materials.length} malzeme yüklü` : 'Excel yüklenmedi';
+    renderDonemList();
+    renderServices();
+    renderMatrix();
+  }).apiGetDonemData(id);
+}
+
+function renderServices(){
+  const el = $('svcList');
+  if (!STATE.donem || !STATE.donem.services || !STATE.donem.services.length){ 
+    el.innerHTML = '<div class="hint">Henüz servis yok.</div>'; 
+    return; 
+  }
+  
+  // LİNK YAPISI: ?token=... — adres, sayfanın açıldığı güncel dağıtımdan alınır
+  const origin = STATE.baseUrl || DEFAULT_ORIGIN;
+  
+  el.innerHTML = STATE.donem.services.map(s => {
+    const url = `${origin}?token=${s.token}`;
+    const nm = String(s.name || '').trim();
+    return `<div class="svc-list-item">
+      <span class="name">${nm ? esc(nm) : '<i style="color:#b91c1c;">(adı boş)</i>'}</span>
+      <span class="url" title="${esc(url)}">${esc(url)}</span>
+      <button class="btn btn-sm btn-gray" data-rename="${esc(s.id)}" data-old="${esc(nm)}">✏️</button>
+      <button class="btn btn-sm btn-gray" data-copy="${esc(url)}">📋 Kopyala</button>
+      <button class="btn btn-sm btn-red" data-del="${esc(s.id)}">🗑</button>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('[data-rename]').forEach(b => {
+    b.onclick = () => servisAdiDuzenle(b.dataset.rename, b.dataset.old);
+  });
+
+  el.querySelectorAll('[data-copy]').forEach(b => {
+    b.onclick = () => {
+      navigator.clipboard.writeText(b.dataset.copy);
+      toast('Link kopyalandı');
+    };
+  });
+
+  el.querySelectorAll('[data-del]').forEach(b => {
+    b.onclick = () => servisSil(b.dataset.del);
+  });
+}
+
+function servisAdiDuzenle(sid, eski) {
+  const yeni = prompt('Servis adı:', eski || '');
+  if (yeni === null) return;
+  const ad = yeni.trim();
+  if (!ad) return toast('Ad boş olamaz');
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res && res.error) { alert('Hata: ' + res.error); return; }
+      toast('Servis adı güncellendi');
+      openDonem(STATE.activeDonemId);
+    })
+    .withFailureHandler(err => alert('Sunucu bağlantı hatası: ' + err.message))
+    .apiRenameService(STATE.activeDonemId, sid, ad);
+}
+
+function servisSil(sid) {
+  if (!confirm('Servis ve bu servise ait tüm talepler silinecek. Emin misiniz?')) return;
+  
+  toast('Siliniyor...');
+  google.script.run
+    .withSuccessHandler((res) => {
+      if (res && res.error) {
+        alert('Hata: ' + res.error);
+      } else {
+        toast('Servis silindi');
+        openDonem(STATE.activeDonemId); // Ekranı yenile
+      }
+    })
+    .withFailureHandler((err) => {
+      alert('Sunucu bağlantı hatası: ' + err.message);
+    })
+    .apiDeleteService(STATE.activeDonemId, sid);
+}
+
+// --- Ana tablo: sıralama / sütun filtresi / Excel ---
+STATE.sortKey = '';
+STATE.sortDir = 1;          // 1 artan, -1 azalan
+STATE.colFilters = {};      // { sutKodu: 'filled'|'empty', 'svc:<id>': ..., total: ... }
+STATE.lastRender = { rows: [], svcCols: [], grand: 0 };
+
+function fmtTs(v){
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function cellRaw(m, sid){
+  const v = STATE.donem.requests[m.key]?.[sid];
+  return v === undefined || v === null || v === '' ? 0 : Number(v) || 0;
+}
+
+function colValue(row, key){
+  if (key === 'sutKodu') return row.m.sutKodu || '';
+  if (key === 'tasinirKodu') return row.m.tasinirKodu || '';
+  if (key === 'tanim') return row.m.tanim || '';
+  if (key === 'smtKodu') return row.m.smtKodu || '';
+  if (key === 'total') return row.total;
+  if (key.startsWith('svc:')) return row.vals[key.slice(4)] || 0;
+  return '';
+}
+
+function isNumericKey(key){
+  return key === 'total' || key.startsWith('svc:');
+}
+
+function passesFilters(row){
+  const f = STATE.colFilters;
+  const checks = {
+    sutKodu: String(row.m.sutKodu || '').trim(),
+    tasinirKodu: String(row.m.tasinirKodu || '').trim(),
+    tanim: String(row.m.tanim || '').trim(),
+    smtKodu: String(row.m.smtKodu || '').trim(),
+    total: row.total
+  };
+  for (const k in f){
+    const val = f[k];
+    if (!val) continue;
+    let filled;
+    if (k.startsWith('svc:')) filled = (row.vals[k.slice(4)] || 0) > 0;
+    else if (k === 'total') filled = (checks.total || 0) > 0;
+    else filled = String(checks[k] || '').trim() !== '';
+    if (val === 'filled' && !filled) return false;
+    if (val === 'empty' && filled) return false;
+  }
+  return true;
+}
+
+function filterSelectHTML(key){
+  const cur = STATE.colFilters[key] || '';
+  const opt = (v, t) => `<option value="${v}"${cur===v?' selected':''}>${t}</option>`;
+  return `<select data-colfilter="${esc(key)}">${opt('', 'Tümü')}${opt('filled', 'Dolu')}${opt('empty', 'Boş')}</select>`;
+}
+
+function sortIndicator(key){
+  if (STATE.sortKey !== key) return '';
+  return STATE.sortDir === 1 ? '▲' : '▼';
+}
+
+function thSort(key, label, extra){
+  return `<th class="sortable" data-sort="${esc(key)}" style="${extra||''}">${label} <span class="sort-ind">${sortIndicator(key)}</span></th>`;
+}
+
+function renderMatrix(){
+  if (!STATE.donem) return;
+  const thead = $('mainThead'), tbody = $('mainTbody'), tfoot = $('mainTfoot');
+  const filter = ($('mainFilter').value||'').toLowerCase();
+  const svcCols = STATE.donem.services;
+  const infoAll = STATE.donem.requestInfo || {};
+
+  thead.innerHTML = `<tr>
+    ${thSort('sutKodu', 'SutKodu')}
+    ${thSort('tasinirKodu', 'Taşınır Kodu')}
+    ${thSort('tanim', 'Malzeme Tanımı')}
+    ${thSort('smtKodu', 'SMT Kodu')}
+    <th style="text-align:center;">Şartname</th>
+    ${svcCols.map(s => thSort('svc:' + s.id, esc(String(s.name||'').trim() || '(adsız)'), 'text-align:center;')).join('')}
+    ${thSort('total', 'TOPLAM', 'background:#b45309;text-align:center;')}
+  </tr>
+  <tr class="filter-row">
+    <th>${filterSelectHTML('sutKodu')}</th>
+    <th>${filterSelectHTML('tasinirKodu')}</th>
+    <th>${filterSelectHTML('tanim')}</th>
+    <th>${filterSelectHTML('smtKodu')}</th>
+    <th style="text-align:center;">—</th>
+    ${svcCols.map(s => `<th>${filterSelectHTML('svc:' + s.id)}</th>`).join('')}
+    <th>${filterSelectHTML('total')}</th>
+  </tr>`;
+
+  // 1) Satırları hazırla
+  let rows = [];
+  for (const m of STATE.donem.materials){
+    const searchStr = `${m.tanim||''} ${m.sutKodu||''} ${m.tasinirKodu||''} ${m.smtKodu||''}`.toLowerCase();
+    if (filter && !searchStr.includes(filter)) continue;
+
+    const vals = {};
+    let total = 0;
+    for (const s of svcCols){
+      const v = cellRaw(m, s.id);
+      vals[s.id] = v;
+      total += v;
+    }
+    rows.push({ m: m, vals: vals, total: total, info: infoAll[m.key] || {} });
+  }
+
+  const beforeColFilter = rows.length;
+  rows = rows.filter(passesFilters);
+
+  // 2) Sıralama
+  if (STATE.sortKey){
+    const key = STATE.sortKey, dir = STATE.sortDir;
+    rows.sort((a, b) => {
+      if (isNumericKey(key)) {
+        const av = colValue(a, key), bv = colValue(b, key);
+        return (av - bv) * dir || (String(a.m.tanim||'').localeCompare(String(b.m.tanim||''), 'tr'));
+      }
+      const av = String(colValue(a, key) || ''), bv = String(colValue(b, key) || '');
+      return av.localeCompare(bv, 'tr', { numeric: true, sensitivity: 'base' }) * dir;
+    });
+  }
+
+  // 3) Gövde
+  let html = '', grand = 0;
+  for (const row of rows){
+    const m = row.m;
+    grand += row.total;
+    let cells = '';
+    for (const s of svcCols){
+      const v = row.vals[s.id];
+      const rec = row.info[s.id];
+      const ts = rec && rec.tarih ? fmtTs(rec.tarih) : '';
+      cells += `<td style="text-align:center;">
+        <input type="number" min="0" class="amount-input" data-key="${esc(m.key)}" data-sid="${esc(s.id)}" value="${v||''}" title="${ts ? 'Son kayıt: ' + esc(ts) : ''}">
+        ${ts ? `<div class="cell-ts">🕒 ${esc(ts)}</div>` : ''}
+      </td>`;
+    }
+    const sartBtn = m.smtKodu ? `<button class="btn btn-sm btn-orange" onclick="sartnameIndir('${esc(m.smtKodu)}')">📄 Aç</button>` : '—';
+    html += `<tr>
+      <td>${esc(m.sutKodu)}</td><td>${esc(m.tasinirKodu)}</td><td>${esc(m.tanim)}</td><td>${esc(m.smtKodu)}</td>
+      <td style="text-align:center;">${sartBtn}</td>
+      ${cells}
+      <td style="text-align:center;font-weight:700;background:#fef3c7;">${row.total?fmt(row.total):''}</td>
+    </tr>`;
+  }
+  tbody.innerHTML = html || `<tr><td colspan="${5+svcCols.length+1}" style="text-align:center;">Kayıt yok</td></tr>`;
+
+  // 4) Toplam satırı (görünen satırlar üzerinden)
+  let totalCells = '';
+  for (const s of svcCols){
+    let t = 0;
+    for (const row of rows) t += row.vals[s.id] || 0;
+    totalCells += `<td style="text-align:center;">${t?fmt(t):''}</td>`;
+  }
+  tfoot.innerHTML = `<tr class="total-row"><td colspan="5" style="text-align:right;">TOPLAM →</td>${totalCells}<td style="text-align:center;">${grand?fmt(grand):''}</td></tr>`;
+  $('grandBadge').textContent = 'Genel Toplam: ' + fmt(grand);
+  $('rowBadge').textContent = rows.length + (beforeColFilter !== rows.length ? ' / ' + beforeColFilter : '') + ' satır';
+
+  STATE.lastRender = { rows: rows, svcCols: svcCols, grand: grand };
+
+  tbody.querySelectorAll('.amount-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const key = e.target.dataset.key, sid = e.target.dataset.sid;
+      const val = e.target.value.trim();
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.tarih){
+          STATE.donem.requests[key] = STATE.donem.requests[key] || {};
+          STATE.donem.requests[key][sid] = val ? Number(val) : 0;
+          STATE.donem.requestInfo = STATE.donem.requestInfo || {};
+          STATE.donem.requestInfo[key] = STATE.donem.requestInfo[key] || {};
+          if (val) STATE.donem.requestInfo[key][sid] = { miktar: Number(val), tarih: res.tarih };
+          else delete STATE.donem.requestInfo[key][sid];
+          renderMatrix();
+        } else {
+          openDonem(STATE.activeDonemId);
+        }
+      }).apiSaveAdminRequest(STATE.activeDonemId, key, sid, val ? Number(val) : 0);
+    });
+  });
+
+  // Sıralama: başlığa tıkla
+  thead.querySelectorAll('th[data-sort]').forEach(th => {
+    th.onclick = () => {
+      const key = th.dataset.sort;
+      if (STATE.sortKey === key) STATE.sortDir = -STATE.sortDir;
+      else { STATE.sortKey = key; STATE.sortDir = 1; }
+      renderMatrix();
+    };
+  });
+
+  // Sütun filtreleri
+  thead.querySelectorAll('select[data-colfilter]').forEach(sel => {
+    sel.onchange = () => {
+      const k = sel.dataset.colfilter;
+      if (sel.value) STATE.colFilters[k] = sel.value;
+      else delete STATE.colFilters[k];
+      renderMatrix();
+    };
+  });
+}
+
+function exportMatrixXlsx(){
+  if (!STATE.donem) return toast('Önce bir dönem açın');
+  const svcCols = STATE.lastRender.svcCols.length ? STATE.lastRender.svcCols : STATE.donem.services;
+  const rows = STATE.lastRender.rows || [];
+  if (!rows.length) return toast('Dışa aktarılacak satır yok');
+
+  const svcName = s => String(s.name || '').trim() || '(adsız)';
+  const head = ['SutKodu', 'Taşınır Kodu', 'Malzeme Tanımı', 'SMT Kodu']
+    .concat(svcCols.map(svcName))
+    .concat(['TOPLAM']);
+
+  const aoa = [head];
+  for (const row of rows){
+    const line = [row.m.sutKodu || '', row.m.tasinirKodu || '', row.m.tanim || '', row.m.smtKodu || ''];
+    for (const s of svcCols) line.push(row.vals[s.id] || '');
+    line.push(row.total || '');
+    aoa.push(line);
+  }
+  const totalLine = ['TOPLAM', '', '', ''];
+  for (const s of svcCols){
+    let t = 0;
+    for (const row of rows) t += row.vals[s.id] || 0;
+    totalLine.push(t || '');
+  }
+  totalLine.push(STATE.lastRender.grand || '');
+  aoa.push(totalLine);
+
+  // 2. sayfa: düz istek listesi (servis + tarih/saat)
+  const flat = [['Servis', 'SutKodu', 'Taşınır Kodu', 'Malzeme Tanımı', 'Miktar', 'Tarih / Saat']];
+  for (const row of rows){
+    for (const s of svcCols){
+      const miktar = row.vals[s.id] || 0;
+      if (!miktar) continue;
+      const rec = row.info ? row.info[s.id] : null;
+      flat.push([svcName(s), row.m.sutKodu || '', row.m.tasinirKodu || '', row.m.tanim || '', miktar, rec && rec.tarih ? fmtTs(rec.tarih) : '']);
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(aoa);
+  ws1['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 48 }, { wch: 12 }]
+    .concat(svcCols.map(() => ({ wch: 16 })))
+    .concat([{ wch: 10 }]);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Ana Tablo');
+  const ws2 = XLSX.utils.aoa_to_sheet(flat);
+  ws2['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 48 }, { wch: 10 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, ws2, 'İstek Detayı');
+
+  const safe = String(STATE.donem.ad || 'donem').replace(/[\\/:*?"<>|]+/g, '-').trim();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileName = `${safe}-istekler-${stamp}.xlsx`;
+
+  try {
+    XLSX.writeFile(wb, fileName);
+    toast('Excel indirildi');
+  } catch (e) {
+    // Bazı tarayıcı/iframe ayarlarında doğrudan indirme engellenebilir
+    try {
+      const b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+      const a = document.createElement('a');
+      a.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+      a.download = fileName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      toast('Excel indirildi');
+    } catch (e2) {
+      alert('Excel oluşturulamadı: ' + (e2 && e2.message ? e2.message : e2));
+    }
+  }
+}
+
+/* Olaylar */
+$('addDonemBtn').onclick = () => {
+  const ad = $('donemAd').value.trim();
+  if (!ad) return toast('Dönem adı girin');
+  google.script.run.withSuccessHandler(res => {
+    $('donemAd').value = '';
+    toast('Dönem oluşturuldu');
+    loadDonemler();
+    openDonem(res.id);
+  }).apiAddDonem(ad);
+};
+
+$('deleteDonemBtn').onclick = () => {
+  if (!confirm('Dönem silinsin mi?')) return;
+  google.script.run.withSuccessHandler(() => {
+    STATE.activeDonemId = null; STATE.donem = null;
+    $('donemPanel').classList.add('hidden');
+    loadDonemler();
+    toast('Dönem silindi');
+  }).apiDeleteDonem(STATE.activeDonemId);
+};
+
+$('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0]; 
+  if (!file) return;
+  
+  $('dataStatus').textContent = "Dosya okunuyor, lütfen bekleyin...";
+  
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      // Excel dosyasını oku
+      const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      
+      if (rows.length === 0) {
+        alert("Excel dosyası boş görünüyor.");
+        $('dataStatus').textContent = "Hata: Boş dosya";
+        return;
+      }
+
+      console.log("Excel Başlıkları:", Object.keys(rows[0]));
+
+      let materials = [], branslar = [];
+      
+      rows.forEach(r => {
+        // Sütun isimlerini esnek yakala
+        const getVal = (keys) => {
+          for (let k of keys) {
+            if (r[k] !== undefined && r[k] !== '') return String(r[k]).trim();
+            const cleanK = Object.keys(r).find(x => x.replace(/\s/g,'').toLowerCase() === k.replace(/\s/g,'').toLowerCase());
+            if (cleanK && r[cleanK] !== undefined && r[cleanK] !== '') return String(r[cleanK]).trim();
+          }
+          return '';
+        };
+
+        let tanim   = getVal(['Malzeme Tanımı', 'Malzeme Adı', 'Malzeme', 'Malzeme Adi']);
+        let tasinir = getVal(['Taşınır Kodu', 'TaşınırKodu', 'Tasinir Kodu', 'TasinirKodu']);
+        let sut     = getVal(['SutKodu', 'SUT Kodu', 'Sut Kodu', 'SUTKodu']);
+        let smt     = getVal(['Teknik Şartname Kodu', 'SMT Kodu', 'SMTKodu', 'SMT']);
+        let kat     = getVal(['Kategori Adı', 'Branş', 'Brans', 'Kategori']);
+        
+        if (!tanim && !tasinir) return;
+        
+        let key = tasinir || sut; 
+        if (!key) return;
+
+        let mevcut = materials.find(m => m.key === key);
+        if (!mevcut) {
+          materials.push({ 
+            key: key, sutKodu: sut, tasinirKodu: tasinir, tanim: tanim, 
+            branslar: kat ? [kat] : [], smtKodu: smt 
+          });
+        } else if (kat && !mevcut.branslar.includes(kat)) {
+          mevcut.branslar.push(kat);
+        }
+        
+        if (kat && !branslar.includes(kat)) branslar.push(kat);
+      });
+
+      if (materials.length === 0) {
+        alert("Excel'de uygun sütunlar bulunamadı.\nLütfen 'Malzeme Tanımı' ve 'Taşınır Kodu' sütunlarının olduğundan emin olun.");
+        $('dataStatus').textContent = "Sütun hatası";
+        return;
+      }
+      
+      $('dataStatus').textContent = "Sunucuya kaydediliyor...";
+      
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res && res.error) {
+            alert("❌ Hata: " + res.error);
+            $('dataStatus').textContent = "Kayıt Başarısız";
+          } else {
+            toast('Excel başarıyla yüklendi!');
+            $('dataStatus').textContent = `✅ ${materials.length} malzeme yüklendi`;
+            openDonem(STATE.activeDonemId); // Ekranı yenile
+          }
+        })
+        .withFailureHandler((err) => {
+          alert("Sunucuya ulaşılamadı: " + err.message);
+        })
+        .apiSaveMaterials(STATE.activeDonemId, materials, branslar);
+        
+    } catch (err) {
+      alert("Excel okunurken bir hata oluştu: " + err.message);
+      $('dataStatus').textContent = "Okuma hatası";
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+$('addSvcBtn').onclick = () => {
+  const name = $('svcName').value.trim();
+  if (!name) return;
+  google.script.run.withSuccessHandler(() => {
+    $('svcName').value = '';
+    toast('Servis eklendi');
+    openDonem(STATE.activeDonemId);
+  }).apiAddService(STATE.activeDonemId, name);
+};
+
+$('mainFilter').addEventListener('input', renderMatrix);
+
+$('exportXlsxBtn').onclick = exportMatrixXlsx;
+
+$('clearColFiltersBtn').onclick = () => {
+  STATE.colFilters = {};
+  // Filtre kutularının görünen değerini de sıfırla
+  document.querySelectorAll('#mainThead select[data-colfilter]').forEach(s => { s.value = ''; });
+  renderMatrix();
+  toast('Sütun filtreleri temizlendi');
+};
+
+function sartnameIndir(smtKodu) {
+  google.script.run.withSuccessHandler(res => {
+    if (res.success) {
+      const a = document.createElement('a');
+      a.href = res.url; a.download = res.dosyaAdi;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } else { alert(res.error); }
+  }).apiGetSartname(smtKodu);
+}
+
+loadDonemler();
+loadBaseUrl();
+</script>
+</body>
+</html>

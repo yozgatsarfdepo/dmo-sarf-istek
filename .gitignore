@@ -1,0 +1,18 @@
+# Netlify
+.netlify/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Bağımlılıklar
+node_modules/
+
+# İşletim sistemi
+.DS_Store
+Thumbs.db
+
+# Yerel ayar (gerçek anahtarları commit etmeyin)
+public/js/firebase-config.local.js

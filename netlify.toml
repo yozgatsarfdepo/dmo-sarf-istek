@@ -1,0 +1,41 @@
+# Netlify yapılandırması
+# Statik site: build adımı yok, doğrudan public/ klasörü yayınlanır.
+
+[build]
+  publish = "public"
+  command = ""
+
+# Servis linkleri:  https://<site>/s/<token>  ->  /service.html?token=<token>
+[[redirects]]
+  from = "/s/:token"
+  to = "/service.html?token=:token"
+  status = 200
+
+# Kısa yollar
+[[redirects]]
+  from = "/admin"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/servis"
+  to = "/service.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"

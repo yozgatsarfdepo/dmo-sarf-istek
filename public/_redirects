@@ -1,0 +1,2 @@
+/s/*  /service.html?token=:splat  200
+/admin  /index.html  200

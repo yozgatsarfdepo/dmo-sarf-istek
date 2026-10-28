@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // YÖNETİCİ E-POSTALARI
+    // Aşağıdaki listeye kendi yönetici e-posta adres(ler)inizi yazın.
+    // Bu adresler dışındaki hesaplar yönetici işlemi yapamaz.
+    // ============================================================
+    function isAdmin() {
+      return request.auth != null
+          && request.auth.token.email in [
+               'admin@ornek.com'
+             ];
+    }
+
+    // ---------------- Dönemler ----------------
+    match /donemler/{donemId} {
+      allow read, write: if isAdmin();
+
+      // Malzeme listesi servis portalından okunur (gizli veri değildir).
+      match /malzemeler/{materialKey} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+
+      // Servis kayıtları (token dahil) yalnızca yöneticiye açıktır.
+      match /servisler/{serviceId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
+    // ---------------- Şartnameler (parçalı dosya) ----------------
+    // Firestore'da base64 parçalar halinde saklanır; herkes okur, yönetici yazar.
+    match /sartnameler/{smtKodu} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+
+      match /parcalar/{parca} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    // ---------------- Servis portalı verisi ----------------
+    // Belge kimliği servis linkindeki gizli koddur (token).
+    match /publicData/{token} {
+      // Portal yalnızca "istekler" alanını değiştirebilir.
+      function isPortalUpdate() {
+        let after = request.resource.data;
+        let before = resource.data;
+        return after.diff(before).affectedKeys().hasOnly(['istekler'])
+            && after.donemId == before.donemId
+            && after.serviceId == before.serviceId
+            && after.name == before.name
+            && after.istekler is map
+            && after.istekler.size() <= 5000;
+      }
+
+      allow get: if true;            // portal sadece kendi token'ı ile okur
+      allow list: if isAdmin();      // tüm token'ları listelemek yönetici işi
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isPortalUpdate();
+    }
+  }
+}

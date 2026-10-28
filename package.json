@@ -1,0 +1,11 @@
+{
+  "name": "dmo-ihale-istek",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A Grubu Tıbbi Sarf Malzeme İstek Sistemi — Firebase (Firestore/Auth/Storage) + Netlify",
+  "scripts": {
+    "dev": "npx --yes serve public -l 5173",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:netlify": "npx --yes netlify-cli deploy --prod --dir=public"
+  }
+}

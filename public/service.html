@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Servis Portalı — A Grubu Sarf İstek</title>
+<link rel="stylesheet" href="/css/service.css">
+</head>
+<body>
+
+<div id="setupPanel" class="panel hidden">
+  <h2>⚙️ Firebase Kurulumu Gerekli</h2>
+  <p>Uygulama Firebase'e bağlanmadı. <b>public/js/firebase-config.js</b> dosyasını doldurun.</p>
+</div>
+
+<div id="tokenPanel" class="panel no-print hidden">
+  <h2>🔗 Bağlantı Eksik</h2>
+  <p class="hint">Bu sayfa servis linki (token) olmadan açıldı. Size gönderilen servis linkini veya linkin sonundaki kodu aşağıya yapıştırın.</p>
+  <div class="row" style="margin-top:10px;">
+    <input type="text" id="manualToken" placeholder="https://.../s/... veya sadece kod" style="min-width:300px; flex:1;">
+    <button class="btn" id="manualTokenBtn">Devam</button>
+  </div>
+  <p class="hint" id="manualTokenMsg" style="color:#b91c1c;"></p>
+</div>
+
+<div id="errorPanel" class="panel hidden">
+  <h2>❌ Bağlantı Geçersiz</h2>
+  <p id="errorText" style="color:#b91c1c; font-weight:600;"></p>
+  <p class="hint" id="errorToken"></p>
+  <p class="hint">Lütfen yöneticiden güncel servis linkini isteyin. Sorun sürüyorsa link yeniden oluşturulmalı (Admin → Servis Tanımları).</p>
+  <button class="btn btn-gray" id="errorRetryBtn">Farklı bir link dene</button>
+</div>
+
+<div id="loginPanel" class="panel login-wrap no-print hidden">
+  <h2>🔐 Servis Girişi (zorunlu)</h2>
+  <div id="donemInfo" class="donem-badge hidden"></div>
+  <p class="hint">Devam etmek için aşağıdan servisinizi seçin.</p>
+  <div class="row">
+    <label>Servis:</label>
+    <select id="loginService" style="min-width:260px;">
+      <option value="">— Yükleniyor... —</option>
+    </select>
+    <button class="btn" id="loginBtn" disabled>Giriş Yap</button>
+  </div>
+  <p class="hint" id="loginMsg" style="color:#b45309; font-weight:600; margin:8px 0 0;"></p>
+</div>
+
+<div id="app" class="hidden">
+  <div class="svc-header">
+    <div>
+      <div class="name" id="svcName">—</div>
+      <div class="sub" id="donemAd">—</div>
+    </div>
+    <div class="actions no-print">
+      <button class="btn btn-sm btn-gray" id="changeSvcBtn">🔄 Servisi Değiştir</button>
+      <button class="btn btn-sm btn-gray" id="printBtn">🖨️ Yazdır</button>
+      <label for="sigCount">İmza:</label>
+      <input type="number" id="sigCount" value="2" min="0" max="10">
+    </div>
+  </div>
+
+  <div class="tabbar no-print">
+    <button class="tab active" data-tab="list">📋 Malzeme Listesi</button>
+    <button class="tab" data-tab="my">✅ İsteklerim <span class="pill" id="myCount">0</span></button>
+  </div>
+
+  <section class="tabpane" id="pane-list">
+    <div class="toolbar no-print">
+      <label for="bransSelect">Branş</label>
+      <select id="bransSelect" style="min-width:200px;"></select>
+      <input type="text" id="matFilter" class="filter-input" placeholder="🔍 kod veya tanım...">
+      <span id="countBadge" class="badge"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="listTable">
+        <colgroup>
+          <col class="c-num"><col class="c-sut"><col class="c-tas">
+          <col><col class="c-smt"><col class="c-brans"><col class="c-sart"><col class="c-act">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>#</th><th>SutKodu</th><th>Taşınır Kodu</th><th>Malzeme Tanımı</th><th>SMT</th>
+            <th>Branş(lar)</th><th>Şartname</th><th>İşlem</th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tabpane hidden" id="pane-my">
+    <div class="table-wrap">
+      <table id="myTable">
+        <colgroup>
+          <col class="m-num"><col class="m-sut"><col class="m-tas">
+          <col><col class="m-qty"><col class="m-date"><col class="m-del">
+        </colgroup>
+        <thead>
+          <tr><th>#</th><th>SutKodu</th><th>Taşınır Kodu</th><th>Malzeme Tanımı</th><th style="text-align:right;">Miktar</th><th>Tarih / Saat</th><th class="no-print">Sil</th></tr>
+        </thead>
+        <tbody id="myBody"></tbody>
+      </table>
+    </div>
+    <div id="taahhutBox"></div>
+  </section>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+<script type="module" src="/js/service.js"></script>
+</body>
+</html>
