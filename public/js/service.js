@@ -431,6 +431,31 @@ function docxOnizle(smtKodu, res) {
 
 /* ---------------- Yazdırma ---------------- */
 
+// İmza kutuları: sütun sayısı kutu sayısından hesaplanır ve alt satır üstteki
+// satıra göre ortalanır (5 → 3+2, 6 → 3+3, 8 → 4+4). Kutular esnemez; her kutu
+// üst satırdaki genişliği korur, böylece 6. kutu tek başına satırı kaplamaz.
+const IMZA_ETIKETI = 'SERVİS SORUMLUSU';
+
+function imzaKutulariHtml(n) {
+  if (!n) return '';
+  // Tek imza satırı kaplar; 2 ve üzerinde sütun sayısı yarıya bölünür.
+  const kolon = n === 1 ? 1 : Math.max(2, Math.ceil(n / 2));
+  const genis = `width:calc((100% - ${(kolon - 1) * 8}px) / ${kolon});`;
+  const satirlar = [];
+  let i = 0;
+  while (i < n) {
+    const adet = Math.min(kolon, n - i);
+    let html = '';
+    for (let k = 0; k < adet; k++, i++) {
+      // Etiket yalnızca ilk kutuda yazar; diğerleri boş imza alanıdır.
+      const lbl = i === 0 ? `<span class="lbl">${IMZA_ETIKETI}</span>` : '';
+      html += `<div class="signature-box" style="${genis}">${lbl}<div class="sub">İmza / Kaşe</div></div>`;
+    }
+    satirlar.push(`<div class="sig-row">${html}</div>`);
+  }
+  return `<div class="sig-container">${satirlar.join('')}</div>`;
+}
+
 $('printBtn').onclick = () => {
   const sigN = Math.max(0, Math.min(10, parseInt($('sigCount').value, 10) || 0));
   const rows = [];
@@ -443,11 +468,7 @@ $('printBtn').onclick = () => {
   if (!rows.length) return toast('İstek yok');
   rows.sort((a, b) => (a.tanim || '').localeCompare(b.tanim || '', 'tr'));
 
-  const labels = ['SERVİS SORUMLUSU', 'DOKTOR'];
-  let sigs = '';
-  for (let i = 0; i < sigN; i++) {
-    sigs += `<div class="signature-box"><span class="lbl">${esc(labels[i] || ('İMZA ' + (i + 1)))}</span><div class="sub">İmza / Kaşe</div></div>`;
-  }
+  const sigs = imzaKutulariHtml(sigN);
 
   const rowsHtml = rows.map((r, i) => `<tr>
     <td style="text-align:center;">${i + 1}</td><td>${esc(r.sutKodu)}</td><td>${esc(r.tasinirKodu)}</td><td>${esc(r.tanim)}</td>
@@ -481,7 +502,7 @@ $('printBtn').onclick = () => {
         <div class="taahhut-print-h">TAAHHÜT</div>
         <p>${esc(t.metin)}</p>
       </div>` },
-      sigN ? { grup: 'imza', html: `<div class="sig-container">${sigs}</div>` } : null
+      sigN ? { grup: 'imza', html: sigs } : null
     ].filter(Boolean),
     altBilgi: `${esc(printSvcName)} · ${esc(donemAd)} · ${rows.length} kalem`,
     css: `
@@ -491,12 +512,13 @@ $('printBtn').onclick = () => {
       table.pd th { background: #1e40af; color: #fff; }
       table.pd .sum-row td { background: #fef3c7; font-weight: 700; }
       .signature-box { border: 1.5px solid #334155; border-radius: 6px; height: 110px;
-        flex: 1; min-width: 180px; padding: 8px; position: relative; background: #fff; }
+        flex: none; padding: 8px; position: relative; background: #fff; }
       .signature-box .lbl { position: absolute; top: 4px; left: 8px; font-size: 10px; font-weight: 700; color: #475569; }
       .signature-box .sub { position: absolute; bottom: 6px; left: 8px; right: 8px; font-size: 10px;
         color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 3px; }
-      .sig-container { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 10px;
-        break-inside: avoid; page-break-inside: avoid; }
+      .sig-row { display: flex; gap: 8px; justify-content: center; }
+      .sig-row + .sig-row { margin-top: 8px; }
+      .sig-container { padding-top: 10px; break-inside: avoid; page-break-inside: avoid; }
       .print-header { text-align: center; padding-bottom: 5px; }
       .print-header h3 { margin: 0; font-size: 15px; }
       .print-header p { margin: 2px 0; font-size: 12px; }
