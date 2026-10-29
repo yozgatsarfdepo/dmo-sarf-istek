@@ -8,7 +8,7 @@ import { auth, configured } from './fb.js';
 import { firebaseConfig } from './firebase-config.js';
 import * as cfgMod from './firebase-config.js';
 import * as api from './data.js';
-import { $, toast, esc, fmt, fmtTs, sartKodunuBul, dosyaYolu, downloadObjectUrl, kodHucre, kodTitle } from './util.js';
+import { $, toast, esc, fmt, fmtTs, sartKodunuBul, dosyaYolu, downloadObjectUrl, kodHucre, kodTitle, aramaNormal } from './util.js';
 import { sayfaliYazdir } from './print.js';
 
 const XLSX = window.XLSX;
@@ -692,7 +692,7 @@ window.addEventListener('resize', () => {
 function renderMatrix() {
   if (!STATE.donem) return;
   const thead = $('mainThead'), tbody = $('mainTbody'), tfoot = $('mainTfoot');
-  const filter = ($('mainFilter').value || '').toLowerCase();
+  const filter = $('mainFilter').value;
   const svcCols = STATE.donem.services;
   const infoAll = STATE.donem.requestInfo || {};
 
@@ -719,9 +719,10 @@ function renderMatrix() {
 
   // 1) Satırları hazırla
   const rows = [];
+  const q = aramaNormal(filter);   // sorgu bir kez sadeleştirilir
   for (const m of STATE.donem.materials) {
-    const searchStr = `${m.tanim || ''} ${m.sutKodu || ''} ${m.tasinirKodu || ''} ${m.smtKodu || ''}`.toLowerCase();
-    if (filter && !searchStr.includes(filter)) continue;
+    const searchStr = `${m.tanim || ''} ${m.sutKodu || ''} ${m.tasinirKodu || ''} ${m.smtKodu || ''}`;
+    if (q && !aramaNormal(searchStr).includes(q)) continue;
 
     const vals = {};
     let total = 0;
@@ -1278,10 +1279,15 @@ $('fileInput').addEventListener('change', e => {
       const branslar = [];
 
       rows.forEach(r => {
+        // Sütun adları büyük/küçük harf ve Türkçe karakter farkı gözetmeden eşlenir
+        // (ör. "TAŞINIR KODU", "TasinirKodu", "MALZEME TANIMI" de bulunur).
+        const sutunAdlari = Object.keys(r).map(k => ({ ham: k, sade: aramaNormal(k).replace(/\s/g, '') }));
         const getVal = keys => {
           for (const k of keys) {
             if (r[k] !== undefined && r[k] !== '') return String(r[k]).trim();
-            const cleanK = Object.keys(r).find(x => x.replace(/\s/g, '').toLowerCase() === k.replace(/\s/g, '').toLowerCase());
+            const aranan = aramaNormal(k).replace(/\s/g, '');
+            const esles = sutunAdlari.find(x => x.sade === aranan);
+            const cleanK = esles ? esles.ham : null;
             if (cleanK && r[cleanK] !== undefined && r[cleanK] !== '') return String(r[cleanK]).trim();
           }
           return '';
@@ -1459,7 +1465,7 @@ async function renderSartList() {
   </div>`;
 
   el.innerHTML = uyariBandi + aramaKutusu + aracCubugu + sartCache.map(s => `
-    <div class="svc-list-item" data-sartkayit="${esc(String(s.smtKodu).toLowerCase())}" data-kod="${esc(s.smtKodu)}">
+    <div class="svc-list-item" data-sartkayit="${esc(aramaNormal(s.smtKodu))}" data-kod="${esc(s.smtKodu)}">
       <input type="checkbox" class="sart-sec" data-kod="${esc(s.smtKodu)}" title="Seç">
       <span class="name" title="${esc(s.fileName || '')}">${esc(s.smtKodu)}</span>
       <span class="hint" style="font-size:10.5px; white-space:nowrap;">${fmtBytes(s.size)}</span>
@@ -1473,7 +1479,7 @@ async function renderSartList() {
   const ara = $('sartAra');
   if (ara) {
     ara.oninput = () => {
-      const q = ara.value.toLowerCase().trim();
+      const q = aramaNormal(ara.value);
       el.querySelectorAll('[data-sartkayit]').forEach(row => {
         row.style.display = !q || row.dataset.sartkayit.indexOf(q) !== -1 ? '' : 'none';
       });

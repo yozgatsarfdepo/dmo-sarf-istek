@@ -294,6 +294,9 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
    yapılacağı seçilir; tek listeye bağlıysa kutu kilitlidir.
 2. Branş filtresi + arama ile malzeme bulun → **➕ Ekle** → miktarı girin.
    Şartname varsa **📄** ile açılır.
+   > **Arama büyük/küçük harf ve Türkçe karakter duyarsızdır:** `ENJEKTOR`, `enjektör` ve `Enjektör`
+   > aynı sonucu verir; `sargi` → *Sargı bezi*, `cozelti` → *ÇÖZELTİ %0,9*. Kod (SutKodu, Taşınır
+   > Kodu, SMT) ve malzeme adı birlikte taranır.
 3. **İsteklerim** tablosunda tarih/saat ile listelenir; **✏️** ile miktar **güncellenir**, 🗑 ile silinir.
 4. Üstteki **Liste** kutusundan (ya da **🔄 Servisi Değiştir** ile yeni link girerek) başka bir
    listeye geçilebilir. **Her listenin talepleri ayrı tutulur**; bir listede girilen miktar
@@ -357,6 +360,9 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
   önce daralır (en az 64 px), yer bitince tablo yatay kayar; TOPLAM her zaman sağda görünür.
   Sol taraftaki **SutKodu** sütunu da sola yapışıktır.
 - Servis adına tıklayınca o servisin linki görünür; 📋 ile kopyalanır.
+- **Aramalar** (malzeme arama kutusu ve şartname arama) **büyük/küçük harf ve Türkçe karakter
+  duyarsızdır**: `ENJEKTOR` = `enjektör` = `Enjektör`, `sargi` = `Sargı`, `cozelti` = `ÇÖZELTİ`.
+  Excel yüklerken sütun adları da aynı şekilde eşlenir (`TAŞINIR KODU`, `TasinirKodu` …).
 
 **Servis portalı** tek ekranda sekmelidir: “Malzeme Listesi” ve “İsteklerim”.
 Sekme sayesinde iki tablo üst üste uzamaz; her tablo kendi içinde kayar. Üst çubuktaki

@@ -45,6 +45,22 @@ export function kodTitle(v) {
   return esc(kodListesi(v).join(' · '));
 }
 
+// Arama için metni sadeleştirir: Türkçe büyük/küçük harf farkını (İ/I/ı) ve aksanları
+// (ç, ğ, ı, ö, ş, ü) yok sayar. Böylece "SARGI", "sargı" ve "sargi" aynı sonucu verir.
+// Kullanım: sorgu bir kez sadeleştirilir, satırlarda `aramaNormal(metin).includes(q)`.
+const TR_SADE = { 'ı': 'i', 'ç': 'c', 'ğ': 'g', 'ö': 'o', 'ş': 's', 'ü': 'u', 'â': 'a', 'î': 'i', 'û': 'u', 'ô': 'o' };
+
+export function aramaNormal(v) {
+  return String(v === undefined || v === null ? '' : v)
+    .normalize('NFC')
+    .toLocaleLowerCase('tr')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // ayrışan aksan işaretleri (İ -> i + nokta)
+    .replace(/[ıçğöşüâîûô]/g, c => TR_SADE[c] || c)
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function fmtTs(v) {
   if (!v) return '—';
   const d = new Date(v);

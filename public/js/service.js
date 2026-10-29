@@ -5,7 +5,7 @@ import { configured } from './fb.js';
 import * as api from './data.js';
 import {
   $, toast, esc, fmt, fmtTs, extractToken, cleanToken, tokenFromLocation, downloadObjectUrl,
-  kodHucre, kodTitle
+  kodHucre, kodTitle, aramaNormal
 } from './util.js';
 import { sayfaliYazdir } from './print.js';
 
@@ -237,14 +237,15 @@ async function loadService() {
 
 function renderList() {
   const brans = $('bransSelect').value;
-  const filter = ($('matFilter').value || '').toLowerCase();
+  const filter = $('matFilter').value;
   const body = $('listBody');
   let html = '', i = 0;
+  const q = aramaNormal(filter);   // sorgu bir kez sadeleştirilir
 
   for (const m of STATE.materials) {
     if (brans && !(m.branslar || []).includes(brans)) continue;
-    const searchStr = `${m.tanim || ''} ${m.sutKodu || ''} ${m.tasinirKodu || ''} ${m.smtKodu || ''}`.toLowerCase();
-    if (filter && !searchStr.includes(filter)) continue;
+    const searchStr = `${m.tanim || ''} ${m.sutKodu || ''} ${m.tasinirKodu || ''} ${m.smtKodu || ''}`;
+    if (q && !aramaNormal(searchStr).includes(q)) continue;
 
     i++;
     const mevcut = STATE.requests[m.key] ? STATE.requests[m.key][STATE.selectedServiceId] : undefined;
