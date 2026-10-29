@@ -244,9 +244,10 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
 
    | Seçenek | Ne yapar |
    |---|---|
-   | **Servisler hariç** | Her malzeme **tek satır**: branş + malzeme toplam miktarı (servis sütunu yok) |
+   | **Servisler hariç** | Her malzeme **tek satır**: malzeme toplam miktarı (servis ve branş sütunu yok; Excel çıktısında branş sütunu korunur) |
    | **Servisler dahil** | Her servis **ayrı sütun**, satır sonunda malzeme toplamı |
    | Kapsam | Sadece talebi olanlar (varsayılan) · ekrandaki sıralama/filtre · tüm malzemeler |
+   | Yazdırma yönü | **Yatay** (A4 yatay, varsayılan) · **Dikey** (A4 portre) |
    | Ek açıklama | Çıktının altına serbest metin (ör. "İhale komisyonuna sunulmak üzere…") |
    | İmza alanları | Hazırlayan / Kontrol Eden / Onaylayan kutuları |
 
@@ -269,7 +270,9 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
    > (yalnızca "servisler dahil" modunda) gösterilir.
 
    **Yazdırma davranışı (ortak):** içerik A4 ölçüsüne göre ölçülüp sayfalara bölünür
-   ([`public/js/print.js`](public/js/print.js)). Bu sayede üst başlık **her sayfada** yinelenir,
+   ([`public/js/print.js`](public/js/print.js)). Sayfa yönü **Yatay** veya **Dikey** seçilebilir;
+   seçilen yöne göre sayfa ölçüsü (297×210 mm / 210×297 mm) ve sütun genişlikleri yeniden hesaplanır.
+   Bu sayede üst başlık **her sayfada** yinelenir,
    sağ altta **`2 / 10`** biçiminde sayfa numarası yazılır. İmza kutuları ve taahhüt metni tek
    parça sayılır: biri sayfaya sığmazsa **ikisi birlikte** sonraki sayfaya geçer, böylece
    imzalanan metin her zaman imza kutularıyla aynı sayfada kalır.
@@ -286,7 +289,7 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
    talep edilmiştir. Söz konusu malzemeleri 4 ay boyunca kullanacağımızı ve miktarların servisimizin
    gerçek ihtiyacına uygun olduğunu beyan ve taahhüt ederiz."* Altında İstekte Bulunan / Servis
    Sorumlusu / Tarih imza alanları vardır.
-5. **Yazdır** → A4 yatay; başlıkta dönem + **aylık ihale**, tabloda **sıra numarası**, tablo altında
+5. **Yazdır** → **Yön** kutusundan A4 **yatay** (varsayılan) veya **dikey** seçilir; başlıkta dönem + **aylık ihale**, tabloda **sıra numarası**, tablo altında
    *"Toplam N kalem malzeme · 4 aylık ihtiyaç"* satırı ve **taahhüt metni** + imza kutuları bulunur.
    Birden fazla sayfa gerekiyorsa üst başlık her sayfada yinelenir, sağ altta **`2 / 10`** biçiminde
    sayfa numarası çıkar; taahhüt metni ile imza kutuları **tek parça** sayılır — imza kutuları

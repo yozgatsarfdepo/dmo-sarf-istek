@@ -912,14 +912,23 @@ function talepEdenIfadesi(adlar) {
 function ciktiMerkez(m, i) {
   if (i === 0) return true;
   if (m.dahil) return i >= 5;
-  return i === 6;
+  return i === m.basliklar.length - 1;
+}
+
+// Yazdırmada branş sütunu yer almaz; Excel çıktısı branş sütununu korur.
+function branssiz(m) {
+  const k = m.basliklar.indexOf('Branş');
+  if (k < 0) return m;
+  const kes = a => a.filter((_, i) => i !== k);
+  return { ...m, basliklar: kes(m.basliklar), satirlar: m.satirlar.map(kes), altlik: kes(m.altlik) };
 }
 
 // Çıktıyı yazdırma penceresinin sayfalayabileceği parçalara ayırır.
 // header  : her sayfada yinelenen başlık
 // rows    : tablo satırları (toplam satırı en sonda)
 // blocks  : bölünmemesi gereken bloklar (imza kutuları)
-function ciktiParcalari(m) {
+function ciktiParcalari(model) {
+  const m = branssiz(model);
   const d = STATE.donem;
   const now = new Date();
   const tarih = now.toLocaleDateString('tr-TR');
@@ -938,7 +947,7 @@ function ciktiParcalari(m) {
       m.altlik.slice(5, 5 + svcN).map(c => `<td style="text-align:center;">${esc(String(c))}</td>`).join('') +
       `<td style="text-align:center;">${esc(String(m.kalem + ' kalem'))}</td>`;
   } else {
-    footHtml = `<td colspan="6" style="text-align:right;">TOPLAM — ${m.kalem} kalem malzeme</td><td></td>`;
+    footHtml = `<td colspan="${m.basliklar.length - 1}" style="text-align:right;">TOPLAM — ${m.kalem} kalem malzeme</td><td></td>`;
   }
   rows.push(`<tr class="sum-row">${footHtml}</tr>`);
 
@@ -989,9 +998,10 @@ const CIKTI_CSS = `
   .sig .sub { position: absolute; bottom: 5px; left: 6px; right: 6px; font-size: 9px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 2px; }
 `;
 
-function yazdirPenceresi(parcalar, baslik) {
+function yazdirPenceresi(parcalar, baslik, yon) {
   const sonuc = sayfaliYazdir({
     baslik,
+    yon,
     header: parcalar.header,
     tableHead: parcalar.tableHead,
     rows: parcalar.rows,
@@ -1073,7 +1083,7 @@ function openCiktiModal() {
       <div class="seg">
         <label class="seg-i">
           <input type="radio" name="ciktiServis" value="haric" checked>
-          <span class="seg-t"><b>Servisler hariç</b><span class="hint">Her malzeme tek satır · branş + toplam miktar (servis sütunu yok)</span></span>
+          <span class="seg-t"><b>Servisler hariç</b><span class="hint">Her malzeme tek satır · toplam miktar (servis ve branş sütunu yok)</span></span>
         </label>
         <label class="seg-i">
           <input type="radio" name="ciktiServis" value="dahil">
@@ -1088,6 +1098,11 @@ function openCiktiModal() {
       </select>
       <label for="ciktiNot" style="margin-top:12px;">Ek açıklama (opsiyonel)</label>
       <textarea id="ciktiNot" rows="2" placeholder="ör. İhale komisyonuna sunulmak üzere hazırlanmıştır."></textarea>
+      <label for="ciktiYon" style="margin-top:12px;">Yazdırma yönü</label>
+      <select id="ciktiYon" style="width:100%;">
+        <option value="yatay" selected>Yatay (geniş sayfa)</option>
+        <option value="dikey">Dikey (portre)</option>
+      </select>
       <label class="chk" style="margin-top:10px;"><input type="checkbox" id="ciktiImza" checked> İmza alanları ekle</label>
       <div class="cikti-ozet" id="ciktiOzet"></div>
       <div class="actions">
@@ -1101,18 +1116,21 @@ function openCiktiModal() {
   const secili = () => ({
     dahil: document.querySelector('input[name="ciktiServis"]:checked').value === 'dahil',
     kapsam: $('ciktiKapsam').value,
+    yon: $('ciktiYon').value,
     not: $('ciktiNot').value
   });
 
   const ozetle = () => {
-    const m = ciktiModel(secili());
+    const s = secili();
+    const m = ciktiModel(s);
     $('ciktiOzet').textContent = `${m.kalem} kalem · ` +
       (m.dahil ? `${m.svcSayisi} servis · ` : '') +
       (m.aySure ? `${m.aySure} aylık` : 'süre tanımsız') +
-      ` · ${m.dahil ? 'servisler dahil' : 'servisler hariç'}`;
+      ` · ${m.dahil ? 'servisler dahil' : 'servisler hariç'}` +
+      ` · ${s.yon === 'dikey' ? 'dikey' : 'yatay'} sayfa`;
   };
 
-  root.querySelectorAll('input[name="ciktiServis"], #ciktiKapsam, #ciktiNot').forEach(el => {
+  root.querySelectorAll('input[name="ciktiServis"], #ciktiKapsam, #ciktiYon, #ciktiNot').forEach(el => {
     el.addEventListener('input', ozetle);
     el.addEventListener('change', ozetle);
   });
@@ -1120,11 +1138,12 @@ function openCiktiModal() {
 
   $('ciktiIptal').onclick = () => { root.innerHTML = ''; };
   $('ciktiYazdirBtn').onclick = () => {
-    const m = ciktiModel(secili());
+    const s = secili();
+    const m = ciktiModel(s);
     if (!m.satirlar.length) return toast('Seçilen kapsamda malzeme yok');
     const parcalar = ciktiParcalari(m); // imza onay kutusu modal kapanmadan okunmalı
     root.innerHTML = '';
-    yazdirPenceresi(parcalar, 'Talep Listesi');
+    yazdirPenceresi(parcalar, 'Talep Listesi', s.yon);
   };
   $('ciktiExcelBtn').onclick = () => {
     const m = ciktiModel(secili());

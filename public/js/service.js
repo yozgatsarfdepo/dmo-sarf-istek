@@ -490,6 +490,7 @@ $('printBtn').onclick = () => {
 
   const sonuc = sayfaliYazdir({
     baslik: `${printSvcName} — Talep Listesi`,
+    yon: $('printYon').value,
     header: `<div class="print-header">
       <h3>T.C. SAĞLIK BAKANLIĞI — YOZGAT ŞEHİR HASTANESİ</h3>
       <p><b>${esc(printSvcName)}</b> — A Grubu Tıbbi Sarf Malzeme İsteği</p>
