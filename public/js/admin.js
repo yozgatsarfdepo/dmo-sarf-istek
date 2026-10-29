@@ -8,7 +8,7 @@ import { auth, configured } from './fb.js';
 import { firebaseConfig } from './firebase-config.js';
 import * as cfgMod from './firebase-config.js';
 import * as api from './data.js';
-import { $, toast, esc, fmt, fmtTs, sartKodunuBul, dosyaYolu, downloadObjectUrl } from './util.js';
+import { $, toast, esc, fmt, fmtTs, sartKodunuBul, dosyaYolu, downloadObjectUrl, kodHucre, kodTitle } from './util.js';
 import { sayfaliYazdir } from './print.js';
 
 const XLSX = window.XLSX;
@@ -768,8 +768,8 @@ function renderMatrix() {
       ? `<button class="btn btn-sm btn-orange" data-sart="${esc(m.smtKodu)}">📄</button>`
       : '—';
     html += `<tr>
-      <td title="${esc(m.sutKodu)}">${esc(m.sutKodu)}</td>
-      <td title="${esc(m.tasinirKodu)}">${esc(m.tasinirKodu)}</td>
+      <td class="kod-cell" title="${kodTitle(m.sutKodu)}">${kodHucre(m.sutKodu)}</td>
+      <td class="kod-cell" title="${kodTitle(m.tasinirKodu)}">${kodHucre(m.tasinirKodu)}</td>
       <td title="${esc(m.tanim)}">${esc(m.tanim)}</td>
       <td title="${esc(m.smtKodu)}">${esc(m.smtKodu)}</td>
       <td style="text-align:center;">${sartBtn}</td>

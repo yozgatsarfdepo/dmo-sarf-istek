@@ -298,17 +298,23 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
 4. Üstteki **Liste** kutusundan (ya da **🔄 Servisi Değiştir** ile yeni link girerek) başka bir
    listeye geçilebilir. **Her listenin talepleri ayrı tutulur**; bir listede girilen miktar
    diğer listeye yazılmaz. Link değişmeden geçiş yapıldığı için servis tek linkle çalışır.
-5. Listenin altında **📌 Taahhüt** kutusu otomatik oluşur (kalem sayısı ve ay sayısı canlı güncellenir):
+5. **İsteklerim** tablosunda satırlar tek satır yüksekliğindedir: **SutKodu / Taşınır Kodu**
+   hücresinde yalnızca ilk kod yazılır, hücrede birden fazla kod varsa **turuncu `+N` rozeti**
+   görünür (üzerine gelince tüm kodlar okunur). Aynı gösterim **Malzeme Listesi**'nde ve yönetici
+   ana tablosunda da geçerlidir; **yazdırma çıktısında tüm kodlar** alt alta yazılmaya devam eder.
+6. Listenin altında **📌 Taahhüt** kutusu **portalda gösterilmez** (tablo alanını daraltmaması için);
+   taahhüt metni ve imza alanları yalnızca **yazdırma çıktısında** yer alır (kalem sayısı ve ay
+   sayısı çıktı alınırken hesaplanır):
    *"Yukarıda listelenen N kalem malzeme, Ameliyathane servisinin 4 aylık ihtiyacı için tarafımızdan
    talep edilmiştir. Söz konusu malzemeleri 4 ay boyunca kullanacağımızı ve miktarların servisimizin
    gerçek ihtiyacına uygun olduğunu beyan ve taahhüt ederiz."* Altında İstekte Bulunan / Servis
    Sorumlusu / Tarih imza alanları vardır.
-6. **Yazdır** → **Yön** kutusundan A4 **yatay** (varsayılan) veya **dikey** seçilir; başlıkta dönem + **aylık ihale**, tabloda **sıra numarası**, tablo altında
+7. **Yazdır** → **Yön** kutusundan A4 **yatay** (varsayılan) veya **dikey** seçilir; başlıkta dönem + **aylık ihale**, tabloda **sıra numarası**, tablo altında
    *"Toplam N kalem malzeme · 4 aylık ihtiyaç"* satırı ve **taahhüt metni** + imza kutuları bulunur.
    Birden fazla sayfa gerekiyorsa üst başlık her sayfada yinelenir, sağ altta **`2 / 10`** biçiminde
    sayfa numarası çıkar; taahhüt metni ile imza kutuları **tek parça** sayılır — imza kutuları
    sonraki sayfaya geçerse taahhüt metni de onlarla birlikte gider.
-7. **İmza kutuları** — iki alan vardır:
+8. **İmza kutuları** — iki alan vardır:
    - **İmza:** toplam kutu sayısı. **Üst sınır yoktur** (0–istediğiniz kadar).
    - **Satırdaki kutu:** her satırda kaç kutu olacağı. **Boş bırakılırsa** kutular dengeli
      dağıtılır (4'e kadar tek satır; 5 → 3+2, 6 → 3+3, 8 → 4+4, 10 → 5+5, 12 → 4+4+4,
@@ -329,12 +335,12 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
    | 12 | 4 + 4 + 4 |
    | 13 | 5 + 5 + 3 |
 
-8. 📄 butonu şartnameyi açar: **Word (.docx)** dosyaları biçimlendirmesiyle birlikte pencere içinde
+9. 📄 butonu şartnameyi açar: **Word (.docx)** dosyaları biçimlendirmesiyle birlikte pencere içinde
    görüntülenir (tablo/başlıklar korunur), PDF'ler yeni sekmede açılır, eski `.doc` dosyaları indirilir.
    Önizleme penceresindeki **⬇ İndir** ile orijinal dosya alınabilir.
-9. **Kullanım kılavuzu** — portaldaki **❓ Nasıl Kullanılır** düğmesi adım adım anlatımı açar.
-   İlk girişte üstte kısa bir bilgilendirme şeridi de çıkar; **Anladım** denince tarayıcıda
-   hatırlanır ve bir daha görünmez (düğmeden her zaman açılabilir).
+10. **Kullanım kılavuzu** — portaldaki **❓ Nasıl Kullanılır** düğmesi adım adım anlatımı açar.
+    İlk girişte üstte kısa bir bilgilendirme şeridi de çıkar; **Anladım** denince tarayıcıda
+    hatırlanır ve bir daha görünmez (düğmeden her zaman açılabilir).
 
 ---
 

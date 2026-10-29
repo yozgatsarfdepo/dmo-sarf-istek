@@ -4,7 +4,8 @@
 import { configured } from './fb.js';
 import * as api from './data.js';
 import {
-  $, toast, esc, fmt, fmtTs, extractToken, cleanToken, tokenFromLocation, downloadObjectUrl
+  $, toast, esc, fmt, fmtTs, extractToken, cleanToken, tokenFromLocation, downloadObjectUrl,
+  kodHucre, kodTitle
 } from './util.js';
 import { sayfaliYazdir } from './print.js';
 
@@ -253,8 +254,8 @@ function renderList() {
 
     html += `<tr>
       <td>${i}</td>
-      <td title="${esc(m.sutKodu)}">${esc(m.sutKodu)}</td>
-      <td title="${esc(m.tasinirKodu)}">${esc(m.tasinirKodu)}</td>
+      <td class="kod-cell" title="${kodTitle(m.sutKodu)}">${kodHucre(m.sutKodu)}</td>
+      <td class="kod-cell" title="${kodTitle(m.tasinirKodu)}">${kodHucre(m.tasinirKodu)}</td>
       <td title="${esc(m.tanim)}">${esc(m.tanim)}</td>
       <td>${esc(m.smtKodu)}</td>
       <td title="${esc((m.branslar || []).join(', '))}">${esc((m.branslar || []).join(', '))}</td>
@@ -295,8 +296,8 @@ function renderMy() {
     i++;
     html += `<tr>
       <td>${i}</td>
-      <td title="${esc(r.sutKodu)}">${esc(r.sutKodu)}</td>
-      <td title="${esc(r.tasinirKodu)}">${esc(r.tasinirKodu)}</td>
+      <td class="kod-cell" title="${kodTitle(r.sutKodu)}">${kodHucre(r.sutKodu)}</td>
+      <td class="kod-cell" title="${kodTitle(r.tasinirKodu)}">${kodHucre(r.tasinirKodu)}</td>
       <td title="${esc(r.tanim)}">${esc(r.tanim)}</td>
       <td style="text-align:right; font-variant-numeric:tabular-nums; font-weight:600;">${fmt(r.miktar)}</td>
       <td style="font-size:11px; white-space:nowrap;">${esc(fmtTs(r.tarih))}</td>
@@ -312,8 +313,6 @@ function renderMy() {
   const pill = $('myCount');
   if (pill) pill.textContent = rows.length;
 
-  renderTaahhut(rows.length);
-
   body.querySelectorAll('[data-edit]').forEach(b => {
     b.onclick = () => openAmountModal(b.dataset.edit);
   });
@@ -324,8 +323,8 @@ function renderMy() {
 
 /* ---------------- Taahhüt metni ---------------- */
 
-// İstenen kalem sayısı = miktarı girilmiş malzeme sayısı (farklı malzemeler olduğu için
-// miktarların toplanması anlamsızdır).
+// Taahhüt yalnızca yazdırma çıktısında yer alır (İsteklerim tablosunun altında gösterilmez),
+// böylece tablo alanı daralmaz.
 function taahhutBilgi(kalem) {
   const d = STATE.donem || {};
   const ay = Number(d.aySure) || 0;
@@ -338,28 +337,6 @@ function taahhutBilgi(kalem) {
       `talep edilmiştir. Söz konusu malzemeleri ${ayTxt} boyunca kullanacağımızı ve miktarların servisimizin ` +
       `gerçek ihtiyacına uygun olduğunu beyan ve taahhüt ederiz.`
   };
-}
-
-function renderTaahhut(kalem) {
-  const box = $('taahhutBox');
-  if (!box) return;
-  const n = Number(kalem) || 0;
-  if (!n) { box.innerHTML = ''; return; }
-
-  const t = taahhutBilgi(n);
-  const ad = (STATE.donem && STATE.donem.ad) || '';
-  box.innerHTML = `<div class="taahhut no-print">
-    <div class="taahhut-h">📌 Taahhüt</div>
-    <div class="taahhut-meta">${esc(ad)}${ad ? ' · ' : ''}${
-      t.ay ? esc(t.ay + ' aylık ihale') : '<span style="color:#b45309;">ihale süresi tanımsız</span>'
-    }</div>
-    <p class="taahhut-txt">${esc(t.metin)}</p>
-    <div class="taahhut-sign">
-      <div><b>İstekte Bulunan</b><span>Ad Soyad / İmza</span></div>
-      <div><b>Servis Sorumlusu</b><span>Ad Soyad / İmza</span></div>
-      <div><b>Tarih</b><span>${esc(new Date().toLocaleDateString('tr-TR'))}</span></div>
-    </div>
-  </div>`;
 }
 
 /* ---------------- Miktar girişi ---------------- */

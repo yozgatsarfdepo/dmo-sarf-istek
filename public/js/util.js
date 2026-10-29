@@ -21,6 +21,30 @@ export function fmt(n) {
   return (n === undefined || n === null || isNaN(n)) ? '' : Number(n).toLocaleString('tr-TR');
 }
 
+// Bir hücrede birden fazla kod alt alta veya ayraçla yazılmış olabilir.
+export function kodListesi(v) {
+  return String(v === undefined || v === null ? '' : v)
+    .split(/[\r\n;,]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+// Listelerde tek satır: yalnızca ilk kod yazılır, fazlası "+N" rozetiyle belirtilir.
+// Tüm kodlar title'da (üzerine gelince) görünür. Rozet, kod uzun olsa da kırpılmaz.
+export function kodHucre(v) {
+  const list = kodListesi(v);
+  if (!list.length) return '';
+  const fazla = list.length - 1;
+  if (!fazla) return esc(list[0]);
+  return `<span class="kod-cok" title="${esc(list.join(' · '))}">` +
+    `<span class="kod-ilk">${esc(list[0])}</span>` +
+    `<span class="kod-n">+${fazla}</span></span>`;
+}
+
+export function kodTitle(v) {
+  return esc(kodListesi(v).join(' · '));
+}
+
 export function fmtTs(v) {
   if (!v) return '—';
   const d = new Date(v);

@@ -175,21 +175,18 @@ tbody tr:hover{ background:var(--brand-soft); }
 .doc-body img{ max-width:100%; height:auto; }
 .doc-body ul,.doc-body ol{ margin:0 0 10px; padding-left:22px; }
 
-/* ---------- Taahhüt kutusu (İsteklerim) ---------- */.taahhut{
-  margin:14px 4px 4px; padding:14px 16px; border:1px solid #bfdbfe; border-left:4px solid var(--brand);
-  border-radius:10px; background:#f8fbff;
+/* ---------- Kodlar: tek satır + fazlası rozetle ---------- */
+.kod-cell{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* İşlem düğmeleri tek satırda kalsın (satır yüksekliğini büyütmesin) */
+#listTable .btn, #myTable .btn{ white-space:nowrap; }
+.kod-cok{ display:flex; align-items:center; gap:4px; min-width:0; color:#b45309; font-weight:700; }
+.kod-cok .kod-ilk{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kod-cok .kod-n{
+  flex:none; display:inline-block; padding:0 5px; border-radius:999px;
+  background:#fde68a; color:#92400e; border:1px solid #f59e0b;
+  font-size:9.5px; font-weight:800; line-height:1.5;
 }
-.taahhut-h{ font-size:10.5px; font-weight:800; letter-spacing:.7px; color:var(--brand); text-transform:uppercase; }
-.taahhut-meta{ font-size:11.5px; font-weight:600; color:var(--muted); margin:2px 0 7px; }
-.taahhut-txt{ font-size:13px; line-height:1.6; margin:0; color:var(--ink); text-align:justify; }
-.taahhut-sign{ display:flex; gap:10px; flex-wrap:wrap; margin-top:13px; }
-.taahhut-sign > div{
-  flex:1; min-width:150px; border:1px dashed var(--line-2); border-radius:var(--radius-sm);
-  padding:8px 10px; background:#fff; display:flex; flex-direction:column; gap:16px;
-}
-.taahhut-sign b{ font-size:10.5px; letter-spacing:.4px; color:var(--ink-2); }
-.taahhut-sign span{ font-size:10.5px; color:var(--muted); border-top:1px dashed var(--line); padding-top:3px; }
-/* ---------- Kullan�m bilgilendirmesi / k�lavuz ---------- */
+/* ---------- Kullanım bilgilendirmesi / kılavuz ---------- */
 .guide-banner{
   display:flex; align-items:flex-start; gap:10px; padding:10px 14px; border-radius:var(--radius);
   background:#eff6ff; border:1px solid #bfdbfe; color:var(--ink-2); font-size:12px; flex:none;

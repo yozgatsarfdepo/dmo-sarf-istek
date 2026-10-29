@@ -146,6 +146,16 @@ body.app-mode #app{ height:100vh; display:flex; flex-direction:column; gap:10px;
 }
 .empty-state .big{ font-size:34px; }
 
+/* ---------- Kodlar: tek satır + fazlası rozetle ---------- */
+#mainTable .kod-cell{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kod-cok{ display:flex; align-items:center; gap:4px; min-width:0; color:#b45309; font-weight:700; }
+.kod-cok .kod-ilk{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kod-cok .kod-n{
+  flex:none; display:inline-block; padding:0 5px; border-radius:999px;
+  background:#fde68a; color:#92400e; border:1px solid #f59e0b;
+  font-size:9.5px; font-weight:800; line-height:1.5;
+}
+
 /* ---------- Tablo ---------- */
 #mainTable{
   width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12px;
