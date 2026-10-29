@@ -33,11 +33,11 @@
 
 <div id="loginPanel" class="panel login-wrap no-print hidden">
   <h2>🔐 Servis Girişi (zorunlu)</h2>
-  <div id="donemInfo" class="donem-badge hidden"></div>
-  <p class="hint">Devam etmek için aşağıdan servisinizi seçin.</p>
+  <div id="loginSvcName" class="donem-badge hidden"></div>
+  <p class="hint" id="loginHint">Devam etmek için aşağıdan listeyi seçin.</p>
   <div class="row">
-    <label>Servis:</label>
-    <select id="loginService" style="min-width:260px;">
+    <label for="loginDonem">Liste:</label>
+    <select id="loginDonem" style="min-width:260px;">
       <option value="">— Yükleniyor... —</option>
     </select>
     <button class="btn" id="loginBtn" disabled>Giriş Yap</button>
@@ -52,6 +52,9 @@
       <div class="sub" id="donemAd">—</div>
     </div>
     <div class="actions no-print">
+      <label for="listSelect">Liste:</label>
+      <select id="listSelect" title="İhale listesi"></select>
+      <button class="btn btn-sm btn-gray" id="helpBtn" title="Kullanım kılavuzu">❓ Nasıl Kullanılır</button>
       <button class="btn btn-sm btn-gray" id="changeSvcBtn">🔄 Servisi Değiştir</button>
       <button class="btn btn-sm btn-gray" id="printBtn">🖨️ Yazdır</button>
       <label for="printYon">Yön:</label>
@@ -63,6 +66,19 @@
       <input type="number" id="sigCount" value="2" min="0" step="1">
       <label for="sigPerRow">Satırdaki kutu:</label>
       <input type="number" id="sigPerRow" value="" min="1" step="1" placeholder="oto" title="Boş bırakılırsa kutular iki satıra eşit bölünür">
+    </div>
+  </div>
+
+  <div id="guideBanner" class="guide-banner no-print hidden">
+    <div class="g-ic">💡</div>
+    <div class="g-txt">
+      <b>Nasıl kullanılır?</b> Listeden malzemeyi bulup <b>➕ Ekle</b> ile miktarı girin.
+      Girdiğiniz kalemler <b>✅ İsteklerim</b> sekmesinde görünür; oradan <b>✏️ Güncelle</b> veya <b>🗑</b> ile düzeltebilirsiniz.
+      Bitince <b>🖨️ Yazdır</b> ile taahhüt ve imza alanlı listeyi alın.
+    </div>
+    <div class="g-acts">
+      <button class="btn btn-sm btn-gray" id="guideDetail">Tüm adımlar</button>
+      <button class="btn btn-sm" id="guideClose">Anladım</button>
     </div>
   </div>
 
@@ -96,14 +112,17 @@
   </section>
 
   <section class="tabpane hidden" id="pane-my">
+    <div class="my-hint no-print">
+      İsteklerinizi buradan <b>✏️ Güncelle</b> ile değiştirebilir, <b>🗑</b> ile silebilirsiniz. Miktarı boş bırakırsanız istek kaldırılır.
+    </div>
     <div class="table-wrap">
       <table id="myTable">
         <colgroup>
           <col class="m-num"><col class="m-sut"><col class="m-tas">
-          <col><col class="m-qty"><col class="m-date"><col class="m-del">
+          <col><col class="m-qty"><col class="m-date"><col class="m-act">
         </colgroup>
         <thead>
-          <tr><th>#</th><th>SutKodu</th><th>Taşınır Kodu</th><th>Malzeme Tanımı</th><th style="text-align:right;">Miktar</th><th>Tarih / Saat</th><th class="no-print">Sil</th></tr>
+          <tr><th>#</th><th>SutKodu</th><th>Taşınır Kodu</th><th>Malzeme Tanımı</th><th style="text-align:right;">Miktar</th><th>Tarih / Saat</th><th class="no-print">İşlem</th></tr>
         </thead>
         <tbody id="myBody"></tbody>
       </table>

@@ -121,9 +121,30 @@ async function loadDonemler() {
   try {
     STATE.donemler = await api.listDonemler();
     renderDonemList();
+    renderSvcDonemPicker();
   } catch (e) {
     $('donemList').innerHTML = '<div class="hint" style="color:#b91c1c;">Dönemler yüklenemedi: ' + esc(e.message) + '</div>';
   }
+}
+
+// Yeni servis eklerken linkin geçerli olacağı listeler (dönemler) seçilir.
+function renderSvcDonemPicker() {
+  const el = $('svcDonemPicker');
+  if (!el) return;
+  const list = STATE.donemler || [];
+  if (!list.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="svc-donem-h">Link hangi listelerde geçerli olsun?</div>' +
+    list.map(d => `<label class="svc-donem-i">
+      <input type="checkbox" value="${esc(d.id)}"${d.id === STATE.activeDonemId ? ' checked' : ''}>
+      ${esc(d.ad || d.id)}
+    </label>`).join('');
+}
+
+function seciliListeler() {
+  const hepsi = Array.from(document.querySelectorAll('#svcDonemPicker input[type="checkbox"]'));
+  const secili = hepsi.filter(x => x.checked).map(x => x.value);
+  if (STATE.activeDonemId && !secili.includes(STATE.activeDonemId)) secili.unshift(STATE.activeDonemId);
+  return secili;
 }
 
 function renderDonemList() {
@@ -297,6 +318,7 @@ async function openDonem(id) {
 
     renderDonemList();
     renderServices();
+    renderSvcDonemPicker();
     renderMatrix();
     renderSartList();
   } catch (e) {
@@ -360,10 +382,17 @@ function renderServices() {
   el.innerHTML = STATE.donem.services.map(s => {
     const url = serviceUrl(s.token);
     const nm = String(s.name || '').trim();
+    const listeler = (Array.isArray(s.listeler) && s.listeler.length) ? s.listeler : [STATE.activeDonemId];
+    const adlar = listeler.map(id => {
+      const d = (STATE.donemler || []).find(x => x.id === id);
+      return d ? String(d.ad || id) : String(id);
+    });
     return `<div class="svc-list-item">
       <span class="name">${nm ? esc(nm) : '<i style="color:#b91c1c;">(adı boş)</i>'}</span>
+      <span class="lists ${listeler.length > 1 ? '' : 'tek'}" title="${esc(adlar.join(' · '))}">📚 ${listeler.length} liste</span>
       <span class="url" title="${esc(url)}">${esc(url)}</span>
       <button class="btn btn-sm btn-gray" data-rename="${esc(s.id)}" title="Adı düzenle">✏️</button>
+      <button class="btn btn-sm btn-gray" data-lists="${esc(s.id)}" title="Servisin gördüğü listeler">📚</button>
       <button class="btn btn-sm btn-gray" data-copy="${esc(url)}" title="Linki kopyala">📋</button>
       <button class="btn btn-sm btn-red" data-del="${esc(s.id)}" title="Servisi sil">🗑</button>
     </div>`;
@@ -371,6 +400,10 @@ function renderServices() {
 
   el.querySelectorAll('[data-rename]').forEach(b => {
     b.onclick = () => servisAdiDuzenle(b.dataset.rename);
+  });
+
+  el.querySelectorAll('[data-lists]').forEach(b => {
+    b.onclick = () => servisListeleriDuzenle(b.dataset.lists);
   });
 
   el.querySelectorAll('[data-copy]').forEach(b => {
@@ -440,10 +473,16 @@ async function servisAdiDuzenle(serviceId) {
 }
 
 async function servisSil(serviceId) {
-  if (!confirm('Servis ve bu servise ait tüm talepler silinecek. Emin misiniz?')) return;
+  const svc = (STATE.donem.services || []).find(s => s.id === serviceId);
+  const listeler = (svc && Array.isArray(svc.listeler) && svc.listeler.length) ? svc.listeler : [STATE.activeDonemId];
+  const mesaj = listeler.length > 1
+    ? 'Servis bu listeden çıkarılacak ve bu listedeki talepleri silinecek.\n' +
+      `Link diğer ${listeler.length - 1} listede geçerli kalmaya devam edecek. Emin misiniz?`
+    : 'Servis ve bu servise ait tüm talepler silinecek (link geçersiz olacak). Emin misiniz?';
+  if (!confirm(mesaj)) return;
   try {
     await api.deleteService(STATE.activeDonemId, serviceId);
-    toast('Servis silindi');
+    toast(listeler.length > 1 ? 'Servis bu listeden çıkarıldı' : 'Servis silindi');
     await openDonem(STATE.activeDonemId);
     await loadDonemler();
   } catch (e) {
@@ -451,15 +490,76 @@ async function servisSil(serviceId) {
   }
 }
 
+// Servisin gördüğü listeleri (link aynı kalacak şekilde) düzenler.
+async function servisListeleriDuzenle(serviceId) {
+  const svc = (STATE.donem.services || []).find(s => s.id === serviceId);
+  if (!svc) return;
+  const root = $('modalRoot');
+
+  root.innerHTML = `<div class="modal-backdrop">
+    <div class="modal modal-wide">
+      <h3>📚 Servisin Gördüğü Listeler</h3>
+      <p class="hint" style="margin:0;">Aynı link seçilen tüm listelerde geçerli olur. Servis, linki açıp giriş yaptıktan sonra listeyi kendisi seçer; her liste için ayrı link gerekmez.</p>
+      <div class="svc-donem-modal" id="svcListeModal"><div class="hint">Yükleniyor…</div></div>
+      <div class="actions">
+        <button class="btn btn-gray" id="svcListeIptal">İptal</button>
+        <button class="btn" id="svcListeKaydet" disabled>Kaydet</button>
+      </div>
+    </div>
+  </div>`;
+
+  const kapat = () => { root.innerHTML = ''; };
+  $('svcListeIptal').onclick = kapat;
+
+  let mevcut = [];
+  try {
+    const pub = await api.getPublicData(svc.token);
+    mevcut = api.hubUyeler(pub).map(u => u.donemId);
+  } catch (e) {
+    mevcut = Array.isArray(svc.listeler) ? svc.listeler.slice() : [STATE.activeDonemId];
+  }
+  if (!mevcut.length) mevcut = [STATE.activeDonemId];
+
+  const box = $('svcListeModal');
+  if (!box) return; // modal kapatıldı
+  box.innerHTML = (STATE.donemler || []).map(d => `<label>
+      <input type="checkbox" value="${esc(d.id)}"${mevcut.includes(d.id) ? ' checked' : ''}>
+      <span>${esc(d.ad || d.id)}</span>
+      ${d.id === STATE.activeDonemId ? '<span class="hint">· açık liste</span>' : ''}
+    </label>`).join('');
+
+  $('svcListeKaydet').disabled = false;
+  $('svcListeKaydet').onclick = async () => {
+    const ids = Array.from(box.querySelectorAll('input:checked')).map(x => x.value);
+    if (!ids.length) return toast('En az bir liste seçin');
+    const btn = $('svcListeKaydet');
+    btn.disabled = true;
+    try {
+      await api.setServiceDonemler(svc.token, ids);
+      kapat();
+      toast('Servis listeleri güncellendi');
+      await loadDonemler();
+      await openDonem(STATE.activeDonemId);
+    } catch (e) {
+      btn.disabled = false;
+      alert('Güncellenemedi: ' + e.message);
+    }
+  };
+}
+
 $('addSvcBtn').onclick = async () => {
   const name = $('svcName').value.trim();
   if (!name) return toast('Servis adı girin');
   if (!STATE.activeDonemId) return toast('Önce soldan bir dönem açın');
+  const listeler = seciliListeler();
+  if (!listeler.length) return toast('En az bir liste işaretleyin');
   $('addSvcBtn').disabled = true;
   try {
-    await api.addService(STATE.activeDonemId, name);
+    await api.addService(STATE.activeDonemId, name, listeler);
     $('svcName').value = '';
-    toast('Servis eklendi');
+    toast(listeler.length > 1
+      ? `Servis eklendi · tek link ${listeler.length} listede geçerli`
+      : 'Servis eklendi');
     await openDonem(STATE.activeDonemId);
     await loadDonemler();
   } catch (e) {
@@ -705,13 +805,13 @@ function renderMatrix() {
       e.target.disabled = true;
       try {
         if (miktar > 0) {
-          const res = await api.saveRequestByToken(svc.token, key, miktar);
+          const res = await api.saveRequestByToken(svc.token, STATE.activeDonemId, key, miktar);
           STATE.donem.requests[key] = STATE.donem.requests[key] || {};
           STATE.donem.requests[key][sid] = miktar;
           STATE.donem.requestInfo[key] = STATE.donem.requestInfo[key] || {};
           STATE.donem.requestInfo[key][sid] = { miktar, tarih: res.tarih };
         } else {
-          await api.deleteRequestByToken(svc.token, key);
+          await api.deleteRequestByToken(svc.token, STATE.activeDonemId, key);
           if (STATE.donem.requests[key]) delete STATE.donem.requests[key][sid];
           if (STATE.donem.requestInfo[key]) delete STATE.donem.requestInfo[key][sid];
         }

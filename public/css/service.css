@@ -109,7 +109,7 @@ tbody tr:hover{ background:var(--brand-soft); }
 #myTable col.m-tas{ width:118px; }
 #myTable col.m-qty{ width:90px; }
 #myTable col.m-date{ width:150px; }
-#myTable col.m-del{ width:62px; }
+#myTable col.m-act{ width:96px; }
 .total-row td{ background:#fffbeb; font-weight:700; border-top:2px solid #f59e0b; border-bottom:none; }
 
 /* ---------- Modal ---------- */
@@ -175,8 +175,7 @@ tbody tr:hover{ background:var(--brand-soft); }
 .doc-body img{ max-width:100%; height:auto; }
 .doc-body ul,.doc-body ol{ margin:0 0 10px; padding-left:22px; }
 
-/* ---------- Taahhüt kutusu (İsteklerim) ---------- */
-.taahhut{
+/* ---------- Taahhüt kutusu (İsteklerim) ---------- */.taahhut{
   margin:14px 4px 4px; padding:14px 16px; border:1px solid #bfdbfe; border-left:4px solid var(--brand);
   border-radius:10px; background:#f8fbff;
 }
@@ -190,3 +189,16 @@ tbody tr:hover{ background:var(--brand-soft); }
 }
 .taahhut-sign b{ font-size:10.5px; letter-spacing:.4px; color:var(--ink-2); }
 .taahhut-sign span{ font-size:10.5px; color:var(--muted); border-top:1px dashed var(--line); padding-top:3px; }
+/* ---------- Kullan�m bilgilendirmesi / k�lavuz ---------- */
+.guide-banner{
+  display:flex; align-items:flex-start; gap:10px; padding:10px 14px; border-radius:var(--radius);
+  background:#eff6ff; border:1px solid #bfdbfe; color:var(--ink-2); font-size:12px; flex:none;
+}
+.guide-banner .g-ic{ font-size:18px; line-height:1.2; }
+.guide-banner .g-txt{ flex:1; min-width:0; line-height:1.5; }
+.guide-banner .g-acts{ display:flex; gap:6px; flex:none; }
+.my-hint{ padding:8px 14px; border-bottom:1px solid var(--line); background:#fffbeb; color:#92400e; font-size:11.5px; flex:none; }
+.modal-guide{ width:560px; max-width:94vw; }
+.guide-steps{ margin:0; padding-left:20px; font-size:12.5px; line-height:1.6; color:var(--ink-2); }
+.guide-steps li{ margin-bottom:7px; }
+.guide-note{ margin-top:10px; padding:9px 11px; background:#f1f5f9; border-radius:var(--radius-sm); font-size:11.5px; color:var(--ink-2); }

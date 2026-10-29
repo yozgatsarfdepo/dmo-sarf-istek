@@ -6,15 +6,21 @@
 //     ad, createdAt, file, materialCount, serviceCount, branslar[]
 //     donemler/{donemId}/malzemeler/{materialKey}   (herkes okur)
 //     donemler/{donemId}/servisler/{serviceId}      (sadece yönetici)
+//       id, name, token, listeler[], createdAt
 //   publicData/{token}                              (token ile tek doküman okunur)
-//     donemId, donemAd, serviceId, name, branslar[], istekler{ materialKey: {miktar, tarih} }
+//     Tek servis linki (token) birden fazla listede (dönemde) geçerli olabilir:
+//       name,
+//       uyeler:   { donemId: { serviceId, ad, aySure, branslar[] } },
+//       istekler: { donemId: { materialKey: { miktar, tarih } } }
+//     Eski (tek listeli) belgeler istekler'i doğrudan { materialKey: {...} } tutar;
+//     hubUyeler/hubIstekler iki biçimi de okur.
 //   sartnameler/{smtKodu}                          (şartname bilgisi — herkes okur)
 //     sartnameler/{smtKodu}/parcalar/{i}           (base64 parçaları — herkes okur)
 // ============================================================
 
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  query, orderBy, limit, writeBatch, onSnapshot, FieldPath, deleteField
+  query, orderBy, limit, writeBatch, onSnapshot
 } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 import { db } from './fb.js';
 import { nowIso, randomToken, newId } from './util.js';
@@ -131,8 +137,46 @@ export async function deleteDonem(donemId) {
     getDocs(servislerCol(id))
   ]);
 
+  // Aynı link birden fazla listede geçerli olabilir; bu yüzden portal belgesi
+  // yalnızca son üyelik kalkınca silinir. Aksi halde diğer listelerin talepleri
+  // de silinirdi.
+  const tokenler = [];
+  svcSnap.docs.forEach(s => {
+    const t = s.data().token;
+    if (t && !tokenler.includes(t)) tokenler.push(t);
+  });
+  const hubSnaps = await Promise.all(tokenler.map(t => getDoc(publicRef(t))));
+
+  const hubWrites = [];
+  const listeGuncellemeleri = [];
+  tokenler.forEach((t, i) => {
+    const snap = hubSnaps[i];
+    if (!snap || !snap.exists()) return;
+    const pub = snap.data() || {};
+    const istekler = tumIstekler(pub);
+    delete istekler[id];
+    const uyelerVar = !!(pub.uyeler && typeof pub.uyeler === 'object');
+    const uyeler = { ...(uyelerVar ? pub.uyeler : {}) };
+    delete uyeler[id];
+    const kalan = Object.keys(uyeler);
+    if (!kalan.length) {
+      hubWrites.push(b => b.delete(publicRef(t)));
+      return;
+    }
+    hubWrites.push(b => b.update(publicRef(t), { uyeler, istekler }));
+    // Kalan listelerdeki servis kayıtları, linkin geçerli olduğu listeleri taşır.
+    kalan.forEach(k => listeGuncellemeleri.push({ donemId: k, serviceId: uyeler[k].serviceId, listeler: kalan }));
+  });
+
+  // Batch içindeki tek bir hata tüm yazmayı düşüreceği için bu güncellemeler ayrı yapılır.
+  for (const g of listeGuncellemeleri) {
+    try {
+      await updateDoc(doc(db, 'donemler', g.donemId, 'servisler', String(g.serviceId)), { listeler: g.listeler });
+    } catch (e) { /* yoksay */ }
+  }
+
   await runBatches([
-    ...svcSnap.docs.map(s => b => b.delete(publicRef(s.data().token))),
+    ...hubWrites,
     ...svcSnap.docs.map(s => b => b.delete(s.ref)),
     ...matSnap.docs.map(m => b => b.delete(m.ref))
   ]);
@@ -209,48 +253,160 @@ export async function syncPublicData(donemId) {
     b.set(publicRef(token), {
       donemAd: donem.ad || '',
       aySure: Number(donem.aySure) || 0,
-      branslar: donem.branslar || []
+      branslar: donem.branslar || [],
+      uyeler: {
+        [id]: {
+          serviceId: s.id,
+          ad: donem.ad || '',
+          aySure: Number(donem.aySure) || 0,
+          branslar: donem.branslar || []
+        }
+      }
     }, { merge: true });
   }));
+}
+
+/* ---------------- Servis linki → liste (dönem) üyeliği ---------------- */
+// Bir servis linki (token) birden çok listeye (döneme) bağlı olabilir:
+//   publicData/{token} = {
+//     name,
+//     uyeler:   { donemId: { serviceId, ad, aySure, branslar } },
+//     istekler: { donemId: { materialKey: { miktar, tarih } } }
+//   }
+// Bu yapıdan önceki (tek listeli) belgeler istekler'i doğrudan
+// { materialKey: { miktar, tarih } } olarak tutar; aşağıdaki yardımcılar
+// iki biçimi de okur.
+
+function talepKaydi(v) {
+  return !!v && typeof v === 'object' && !Array.isArray(v) && ('miktar' in v || 'tarih' in v);
+}
+
+// Liste (dönem) kimlikleri Firestore alan yolu olarak da kullanılır; nokta içermez.
+function donemKey(v) {
+  return String(v === undefined || v === null ? '' : v).trim();
+}
+
+// publicData belgesinin bağlı olduğu listeler: [{ donemId, serviceId, ad, aySure, branslar }]
+export function hubUyeler(pub) {
+  const uyeler = pub && pub.uyeler;
+  if (uyeler && typeof uyeler === 'object' && !Array.isArray(uyeler)) {
+    const list = Object.keys(uyeler).map(id => {
+      const u = uyeler[id] || {};
+      return {
+        donemId: id,
+        serviceId: String(u.serviceId || ''),
+        ad: String(u.ad || ''),
+        aySure: Number(u.aySure) || 0,
+        branslar: Array.isArray(u.branslar) ? u.branslar : []
+      };
+    });
+    if (list.length) return list.sort((a, b) => a.ad.localeCompare(b.ad, 'tr'));
+  }
+  if (!pub || !pub.donemId) return [];
+  return [{
+    donemId: donemKey(pub.donemId),
+    serviceId: String(pub.serviceId || ''),
+    ad: String(pub.donemAd || ''),
+    aySure: Number(pub.aySure) || 0,
+    branslar: Array.isArray(pub.branslar) ? pub.branslar : []
+  }];
+}
+
+// Belgenin tüm listelerdeki talepleri { donemId: { materialKey: {...} } }.
+// Eski (düz) biçim, belgenin kendi döneminin anahtarına taşınır.
+function tumIstekler(pub) {
+  const istekler = (pub && pub.istekler) || {};
+  const duz = Object.keys(istekler).every(k => talepKaydi(istekler[k]));
+  if (!duz) return { ...istekler };
+  const out = {};
+  const id = donemKey(pub && pub.donemId);
+  if (id) out[id] = { ...istekler };
+  return out;
+}
+
+// Tek bir listenin talepleri { materialKey: { miktar, tarih } }
+export function hubIstekler(pub, donemId) {
+  const istekler = (pub && pub.istekler) || {};
+  const id = donemKey(donemId);
+  const dilim = istekler[id];
+  if (dilim && typeof dilim === 'object' && !Array.isArray(dilim) && !talepKaydi(dilim)) return dilim;
+  // Eski biçim: düz harita, yalnızca belgenin kendi dönemi için geçerlidir.
+  const duz = Object.keys(istekler).every(k => talepKaydi(istekler[k]));
+  if (!duz || donemKey(pub && pub.donemId) !== id) return {};
+  return istekler;
+}
+
+function servisListeleri(data, donemId) {
+  const list = Array.isArray(data && data.listeler) ? data.listeler.filter(Boolean).map(String) : [];
+  if (!list.length && donemId) list.push(donemKey(donemId));
+  return list;
 }
 
 /* ---------------- Servisler ---------------- */
 
 export async function listServices(donemId) {
-  const snap = await getDocs(servislerCol(donemId));
+  const id = String(donemId).trim();
+  const snap = await getDocs(servislerCol(id));
   return snap.docs
-    .map(d => ({ id: d.id, ...d.data() }))
+    .map(d => ({ id: d.id, ...d.data(), listeler: servisListeleri(d.data(), id) }))
     .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'tr'));
 }
 
-export async function addService(donemId, name) {
-  const id = String(donemId).trim();
+// donemIds verilmezse yalnızca bu döneme eklenir. Verilirse aynı servis linki
+// (token) seçilen tüm listelerde geçerli olur.
+export async function addService(donemId, name, donemIds) {
+  const ana = String(donemId).trim();
   const serviceName = String(name || '').trim();
   if (!serviceName) throw new Error('Servis adı boş olamaz');
 
-  const donem = await getDonem(id);
-  const serviceId = newId();
+  const liste = [];
+  (Array.isArray(donemIds) ? donemIds : [ana]).forEach(v => {
+    const x = donemKey(v);
+    if (x && !liste.includes(x)) liste.push(x);
+  });
+  if (!liste.includes(ana)) liste.unshift(ana);
+
+  const donemler = await Promise.all(liste.map(x => getDonem(x)));
   const token = randomToken(24);
   const now = nowIso();
+  const uyeler = {};
 
-  await setDoc(doc(db, 'donemler', id, 'servisler', serviceId), {
-    id: serviceId, name: serviceName, token, createdAt: now
-  });
+  for (let i = 0; i < liste.length; i++) {
+    const id = liste[i];
+    const donem = donemler[i];
+    if (!donem) continue;
+    const serviceId = newId();
+    await setDoc(doc(db, 'donemler', id, 'servisler', serviceId), {
+      id: serviceId, name: serviceName, token, listeler: liste, createdAt: now
+    });
+    uyeler[id] = {
+      serviceId,
+      ad: donem.ad || '',
+      aySure: Number(donem.aySure) || 0,
+      branslar: Array.isArray(donem.branslar) ? donem.branslar : []
+    };
+  }
+
+  const ilk = Object.keys(uyeler)[0] || ana;
+  const ilkDonem = donemler[liste.indexOf(ilk)] || null;
 
   await setDoc(publicRef(token), {
-    donemId: id,
-    donemAd: donem ? (donem.ad || '') : '',
-    aySure: donem ? (Number(donem.aySure) || 0) : 0,
-    serviceId,
+    donemId: ilk,
+    donemAd: (ilkDonem && ilkDonem.ad) || '',
+    aySure: ilkDonem ? (Number(ilkDonem.aySure) || 0) : 0,
+    serviceId: uyeler[ilk] ? uyeler[ilk].serviceId : '',
     name: serviceName,
-    branslar: donem ? (donem.branslar || []) : [],
-    istekler: {},
+    branslar: (ilkDonem && ilkDonem.branslar) || [],
+    uyeler,
+    istekler: { [ilk]: {} },
     createdAt: now
   });
 
-  await updateDoc(donemRef(id), { serviceCount: (await countServices(id)) || 0 });
+  for (const id of Object.keys(uyeler)) {
+    await updateDoc(donemRef(id), { serviceCount: await countServices(id) });
+  }
 
-  return { id: serviceId, name: serviceName, token };
+  return { id: uyeler[ilk] ? uyeler[ilk].serviceId : '', name: serviceName, token, uyeler, listeler: Object.keys(uyeler) };
 }
 
 async function countServices(donemId) {
@@ -269,10 +425,92 @@ export async function renameService(donemId, serviceId, newName) {
 
   await updateDoc(svcRef, { name });
   const token = snap.data().token;
-  if (token) await updateDoc(publicRef(token), { name });
+  if (!token) return { success: true, name };
+
+  // Aynı linke bağlı diğer listelerdeki kayıtlar da yenilenir.
+  const pubSnap = await getDoc(publicRef(token));
+  if (pubSnap.exists()) {
+    for (const u of hubUyeler(pubSnap.data())) {
+      if (u.donemId === id && u.serviceId === String(serviceId)) continue;
+      try {
+        await updateDoc(doc(db, 'donemler', u.donemId, 'servisler', u.serviceId), { name });
+      } catch (e) { /* üyelik kaldırılmış olabilir */ }
+    }
+    await updateDoc(publicRef(token), { name });
+  }
   return { success: true, name };
 }
 
+// Servisin bağlı olduğu listeleri (dönemleri) günceller; link aynı kalır.
+export async function setServiceDonemler(token, donemIds) {
+  const t = String(token || '').trim().toLowerCase();
+  const pref = publicRef(t);
+  const snap = await getDoc(pref);
+  if (!snap.exists()) throw new Error('Servis linki bulunamadı');
+
+  const pub = snap.data() || {};
+  const mevcut = hubUyeler(pub);
+  const mevcutIds = mevcut.map(u => u.donemId);
+
+  const istenen = [];
+  (Array.isArray(donemIds) ? donemIds : []).forEach(v => {
+    const x = donemKey(v);
+    if (x && !istenen.includes(x)) istenen.push(x);
+  });
+  if (!istenen.length) throw new Error('En az bir liste seçilmelidir');
+
+  const name = String(pub.name || '').trim();
+  const uyeler = {};
+  mevcut.forEach(u => {
+    uyeler[u.donemId] = { serviceId: u.serviceId, ad: u.ad, aySure: u.aySure, branslar: u.branslar };
+  });
+
+  // Yeni eklenen listeler
+  for (const id of istenen) {
+    if (uyeler[id] && uyeler[id].serviceId) continue;
+    const donem = await getDonem(id);
+    if (!donem) continue;
+    const serviceId = newId();
+    await setDoc(doc(db, 'donemler', id, 'servisler', serviceId), {
+      id: serviceId, name, token: t, listeler: istenen, createdAt: nowIso()
+    });
+    uyeler[id] = {
+      serviceId,
+      ad: donem.ad || '',
+      aySure: Number(donem.aySure) || 0,
+      branslar: Array.isArray(donem.branslar) ? donem.branslar : []
+    };
+  }
+
+  // Çıkarılan listeler
+  const istekler = tumIstekler(pub);
+  for (const id of mevcutIds) {
+    if (istenen.includes(id)) continue;
+    const u = uyeler[id];
+    if (u && u.serviceId) {
+      try { await deleteDoc(doc(db, 'donemler', id, 'servisler', u.serviceId)); } catch (e) { /* yoksay */ }
+      await updateDoc(donemRef(id), { serviceCount: await countServices(id) });
+    }
+    delete uyeler[id];
+    delete istekler[id];
+  }
+
+  const kalan = Object.keys(uyeler);
+  if (!kalan.length) throw new Error('En az bir liste seçilmelidir');
+
+  // Her üye kayıt, linkin geçerli olduğu listeleri taşır (panelde gösterilir).
+  for (const id of kalan) {
+    try {
+      await updateDoc(doc(db, 'donemler', id, 'servisler', uyeler[id].serviceId), { listeler: kalan });
+    } catch (e) { /* yoksay */ }
+  }
+
+  await updateDoc(pref, { uyeler, istekler });
+  return { success: true, uyeler };
+}
+
+// Bu listeden servisi çıkarır. Link başka listelerde de geçerliyse belge silinmez;
+// yalnızca bu listenin üyeliği ve talepleri kaldırılır. Son liste ise link silinir.
 export async function deleteService(donemId, serviceId) {
   const id = String(donemId).trim();
   const svcRef = doc(db, 'donemler', id, 'servisler', String(serviceId));
@@ -280,7 +518,29 @@ export async function deleteService(donemId, serviceId) {
   if (snap.exists()) {
     const token = snap.data().token;
     await deleteDoc(svcRef);
-    if (token) await deleteDoc(publicRef(token)); // talepler de bu dokümanın içinde
+    if (token) {
+      const pref = publicRef(token);
+      const pubSnap = await getDoc(pref);
+      if (pubSnap.exists()) {
+        const pub = pubSnap.data() || {};
+        const istekler = tumIstekler(pub);
+        delete istekler[id];
+        const uyelerVar = !!(pub.uyeler && typeof pub.uyeler === 'object');
+        const uyeler = { ...(uyelerVar ? pub.uyeler : {}) };
+        delete uyeler[id];
+        const kalan = Object.keys(uyeler);
+        if (!kalan.length) {
+          await deleteDoc(pref);
+        } else {
+          for (const k of kalan) {
+            try {
+              await updateDoc(doc(db, 'donemler', k, 'servisler', uyeler[k].serviceId), { listeler: kalan });
+            } catch (e) { /* yoksay */ }
+          }
+          await updateDoc(pref, { uyeler, istekler });
+        }
+      }
+    }
   }
   await updateDoc(donemRef(id), { serviceCount: await countServices(id) });
   return { success: true };
@@ -292,12 +552,12 @@ function emptyMaps() {
   return { requests: {}, requestInfo: {} };
 }
 
-function collectRequests(snaps, services) {
+function collectRequests(snaps, services, donemId) {
   const { requests, requestInfo } = emptyMaps();
   snaps.forEach((snap, i) => {
     const svc = services[i];
     if (!snap || !snap.exists()) return;
-    const istekler = snap.data().istekler || {};
+    const istekler = hubIstekler(snap.data(), donemId);
     Object.keys(istekler).forEach(key => {
       const rec = istekler[key] || {};
       const miktar = Number(rec.miktar) || 0;
@@ -313,10 +573,11 @@ function collectRequests(snaps, services) {
 
 // Yönetici tablosu için: dönemin tüm servislerinin talepleri
 export async function listDonemRequests(donemId, services) {
-  const list = services || await listServices(donemId);
+  const id = String(donemId).trim();
+  const list = services || await listServices(id);
   if (!list.length) return emptyMaps();
   const snaps = await Promise.all(list.map(s => getDoc(publicRef(s.token))));
-  return collectRequests(snaps, list);
+  return collectRequests(snaps, list, id);
 }
 
 // Portal: token ile servis verisini okur
@@ -335,17 +596,32 @@ export function watchPublicData(token, cb) {
   }, err => cb(null, err));
 }
 
-export async function saveRequestByToken(token, materialKey, miktar) {
-  const tarih = nowIso();
-  await updateDoc(publicRef(token), new FieldPath('istekler', String(materialKey)), {
-    miktar: Number(miktar),
-    tarih
-  });
-  return { success: true, tarih };
+// Talebi yazar. Farklı listeler (dönemler) aynı belgede ayrı tutulduğu için
+// güncelleme belgenin tamamı yerine tek liste dilimi üzerinden yapılır.
+async function yazTalep(token, donemId, materialKey, miktar) {
+  const ref = publicRef(token);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('Servis linki bulunamadı');
+
+  const istekler = tumIstekler(snap.data());
+  const id = donemKey(donemId);
+  const dilim = { ...(istekler[id] || {}) };
+
+  if (miktar === null) delete dilim[String(materialKey)];
+  else dilim[String(materialKey)] = { miktar: Number(miktar), tarih: nowIso() };
+
+  istekler[id] = dilim;
+  await updateDoc(ref, { istekler });
+  return dilim[String(materialKey)] || null;
 }
 
-export async function deleteRequestByToken(token, materialKey) {
-  await updateDoc(publicRef(token), new FieldPath('istekler', String(materialKey)), deleteField());
+export async function saveRequestByToken(token, donemId, materialKey, miktar) {
+  const rec = await yazTalep(token, donemId, materialKey, miktar);
+  return { success: true, tarih: (rec && rec.tarih) || nowIso() };
+}
+
+export async function deleteRequestByToken(token, donemId, materialKey) {
+  await yazTalep(token, donemId, materialKey, null);
   return { success: true };
 }
 

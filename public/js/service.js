@@ -10,8 +10,11 @@ import { sayfaliYazdir } from './print.js';
 
 const STATE = {
   token: '',
-  donem: null,
-  service: null,
+  pub: null,
+  service: { id: '', name: '' },
+  uyeler: [],           // linkin bağlı olduğu listeler (dönemler)
+  donem: null,          // seçili liste
+  materialsCache: {},   // donemId -> malzeme listesi
   materials: [],
   branslar: [],
   requests: {},
@@ -62,10 +65,10 @@ document.querySelectorAll('.tab').forEach(btn => {
 
 /* ---------------- Veri ---------------- */
 
-function applyPublicData(pub) {
-  const istekler = (pub && pub.istekler) || {};
+function applyPublicData(pub, donemId) {
+  const istekler = api.hubIstekler(pub, donemId);
   const requests = {}, requestInfo = {};
-  const sid = pub.serviceId;
+  const sid = STATE.selectedServiceId;
 
   Object.keys(istekler).forEach(key => {
     const rec = istekler[key] || {};
@@ -81,20 +84,89 @@ function applyPublicData(pub) {
   STATE.requestInfo = requestInfo;
 }
 
+/* ---------------- Listeler (dönemler) ---------------- */
+
+function donemEtiket(u) {
+  const ad = String((u && u.ad) || '').trim() || 'Liste';
+  return (u && u.aySure) ? `${ad} · ${u.aySure} aylık` : ad;
+}
+
+function uyeBul(donemId) {
+  return STATE.uyeler.find(u => u.donemId === donemId) || null;
+}
+
+// Başlıktaki liste seçimi: link birden fazla listeye bağlıysa geçiş yapılabilir.
+function listeSecenekleri() {
+  const sel = $('listSelect');
+  if (!sel) return;
+  sel.innerHTML = STATE.uyeler.map(u =>
+    `<option value="${esc(u.donemId)}"${STATE.donem && STATE.donem.id === u.donemId ? ' selected' : ''}>` +
+    `${esc(donemEtiket(u))}</option>`).join('');
+  sel.disabled = STATE.uyeler.length < 2;
+  sel.title = STATE.uyeler.length < 2 ? 'Bu link tek listeye bağlı' : 'İhale listesi (dönem)';
+}
+
+// Seçilen listeyi açar: malzemeler (önbelleğe alınır), branşlar ve talepler.
+async function listeAc(donemId) {
+  const u = uyeBul(donemId) || STATE.uyeler[0];
+  if (!u) { showError('Bu link hiçbir listeye bağlı değil.'); return; }
+
+  if (!STATE.materialsCache[u.donemId]) {
+    STATE.materialsCache[u.donemId] = await api.listMaterials(u.donemId);
+  }
+
+  STATE.donem = { id: u.donemId, ad: u.ad, aySure: u.aySure };
+  STATE.selectedServiceId = u.serviceId || '';
+  STATE.materials = STATE.materialsCache[u.donemId];
+  STATE.branslar = Array.isArray(u.branslar) ? u.branslar : [];
+  applyPublicData(STATE.pub, u.donemId);
+
+  $('svcName').textContent = STATE.service.name || 'Servis';
+  $('donemAd').textContent = '📅 ' + (u.ad || '-') + (u.aySure ? ` · ${u.aySure} aylık ihale` : '');
+
+  $('bransSelect').innerHTML = '<option value="">Tümü</option>' +
+    STATE.branslar.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+
+  listeSecenekleri();
+  renderList();
+  renderMy();
+}
+
 function subscribe(token) {
   if (unsubscribe) unsubscribe();
   unsubscribe = api.watchPublicData(token, (pub, err) => {
     if (err) return;
     if (!pub) { showError('Bu link kaldırılmış veya geçersiz.'); return; }
 
-    applyPublicData(pub);
-    if (pub.donemAd) {
-      STATE.donem = { id: pub.donemId, ad: pub.donemAd, aySure: Number(pub.aySure) || 0 };
-      $('donemAd').textContent = '📅 ' + pub.donemAd + (STATE.donem.aySure ? ` · ${STATE.donem.aySure} aylık ihale` : '');
-    }
-    if (!$('app').classList.contains('hidden')) {
+    STATE.pub = pub;
+    STATE.service = { id: STATE.service.id, name: String(pub.name || '').trim() };
+    STATE.uyeler = api.hubUyeler(pub);
+
+    if ($('loginPanel').classList.contains('hidden') && STATE.donem) {
+      const secili = uyeBul(STATE.donem.id);
+      if (!secili) {
+        // Liste linkten çıkarıldı: ilk geçerli listeye geç.
+        if (STATE.uyeler.length) listeAc(STATE.uyeler[0].donemId).catch(() => {});
+        else showError('Bu link hiçbir listeye bağlı değil.');
+        return;
+      }
+      STATE.branslar = Array.isArray(secili.branslar) ? secili.branslar : STATE.branslar;
+      applyPublicData(pub, STATE.donem.id);
+      listeSecenekleri();
       renderList();
       renderMy();
+      return;
+    }
+
+    // Giriş ekranı açıkken liste seçenekleri tazelenir.
+    const sel = $('loginDonem');
+    if (sel && STATE.uyeler.length && !$('loginPanel').classList.contains('hidden')) {
+      const eski = sel.value;
+      sel.innerHTML = STATE.uyeler.map(u =>
+        `<option value="${esc(u.donemId)}">${esc(donemEtiket(u))}</option>`).join('');
+      if (eski && uyeBul(eski)) sel.value = eski;
+      const badge = $('loginSvcName');
+      if (badge) badge.textContent = '👤 ' + (STATE.service.name || 'Servis (ad tanımsız)');
     }
   });
 }
@@ -103,7 +175,7 @@ async function loadService() {
   hideAll();
   $('loginPanel').classList.remove('hidden');
   $('loginBtn').disabled = true;
-  $('loginService').innerHTML = '<option value="">— Yükleniyor... —</option>';
+  $('loginDonem').innerHTML = '<option value="">— Yükleniyor... —</option>';
 
   try {
     const pub = await api.getPublicData(STATE.token);
@@ -112,39 +184,46 @@ async function loadService() {
       return;
     }
 
-    const materials = await api.listMaterials(pub.donemId);
+    STATE.pub = pub;
+    STATE.service = { id: String(pub.serviceId || ''), name: String(pub.name || '').trim() };
+    STATE.uyeler = api.hubUyeler(pub);
 
-    STATE.donem = { id: pub.donemId, ad: pub.donemAd || '', aySure: Number(pub.aySure) || 0 };
-    STATE.service = { id: pub.serviceId, name: String(pub.name || '').trim() };
-    STATE.materials = materials;
-    STATE.branslar = Array.isArray(pub.branslar) ? pub.branslar : [];
-    STATE.selectedServiceId = pub.serviceId;
-    applyPublicData(pub);
+    if (!STATE.uyeler.length) {
+      showError('Bu link hiçbir listeye bağlı değil. Yöneticiden bu servisin listelerini tanımlamasını isteyin.');
+      return;
+    }
 
     const svcLabel = STATE.service.name || 'Servis (ad tanımsız)';
+    const badge = $('loginSvcName');
+    badge.textContent = '👤 ' + svcLabel;
+    badge.classList.remove('hidden');
 
-    $('donemInfo').textContent = '📅 ' + (STATE.donem.ad || '-');
-    $('donemInfo').classList.remove('hidden');
-    $('loginService').innerHTML = `<option value="${esc(STATE.service.id)}">${esc(svcLabel)}</option>`;
+    $('loginHint').textContent = STATE.uyeler.length > 1
+      ? 'Bu link birden fazla listeye bağlı. Hangi listede işlem yapacağınızı seçin.'
+      : 'Devam etmek için listeyi kontrol edip giriş yapın.';
+
+    $('loginDonem').innerHTML = STATE.uyeler.map(u =>
+      `<option value="${esc(u.donemId)}">${esc(donemEtiket(u))}</option>`).join('');
+
     $('loginMsg').textContent = STATE.service.name
       ? ''
       : '⚠️ Bu servisin adı tanımsız. Admin panelinden "✏️" ile ad verebilirsiniz.';
 
     $('loginBtn').disabled = false;
-    $('loginBtn').onclick = () => {
-      STATE.selectedServiceId = $('loginService').value || pub.serviceId;
-      $('svcName').textContent = svcLabel;
-      $('donemAd').textContent = '📅 ' + (STATE.donem.ad || '-') +
-        (STATE.donem.aySure ? ` · ${STATE.donem.aySure} aylık ihale` : '');
-
-      $('bransSelect').innerHTML = '<option value="">Tümü</option>' +
-        STATE.branslar.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
-
-      hideAll();
-      $('app').classList.remove('hidden');
-      activateTab('list');
-      renderList();
-      renderMy();
+    $('loginBtn').onclick = async () => {
+      const btn = $('loginBtn');
+      btn.disabled = true;
+      try {
+        hideAll();
+        $('app').classList.remove('hidden');
+        activateTab('list');
+        await listeAc($('loginDonem').value);
+        guideGoster();
+      } catch (e) {
+        showError('Liste açılamadı: ' + (e && e.message ? e.message : e));
+      } finally {
+        btn.disabled = false;
+      }
     };
 
     subscribe(STATE.token);
@@ -221,7 +300,10 @@ function renderMy() {
       <td title="${esc(r.tanim)}">${esc(r.tanim)}</td>
       <td style="text-align:right; font-variant-numeric:tabular-nums; font-weight:600;">${fmt(r.miktar)}</td>
       <td style="font-size:11px; white-space:nowrap;">${esc(fmtTs(r.tarih))}</td>
-      <td style="text-align:center;" class="no-print"><button class="btn btn-sm btn-red" data-del="${esc(r.key)}" title="Sil">🗑</button></td>
+      <td class="no-print" style="text-align:center; white-space:nowrap;">
+        <button class="btn btn-sm btn-gray" data-edit="${esc(r.key)}" title="Miktarı güncelle">✏️</button>
+        <button class="btn btn-sm btn-red" data-del="${esc(r.key)}" title="Sil">🗑</button>
+      </td>
     </tr>`;
   });
 
@@ -232,6 +314,9 @@ function renderMy() {
 
   renderTaahhut(rows.length);
 
+  body.querySelectorAll('[data-edit]').forEach(b => {
+    b.onclick = () => openAmountModal(b.dataset.edit);
+  });
   body.querySelectorAll('[data-del]').forEach(b => {
     b.onclick = () => istekSil(b.dataset.del);
   });
@@ -284,16 +369,20 @@ function openAmountModal(key) {
   if (!m) return;
   const mevcut = (STATE.requests[m.key] && STATE.requests[m.key][STATE.selectedServiceId]) || '';
   const root = $('modalRoot');
+  const liste = (STATE.donem && STATE.donem.ad) ? STATE.donem.ad : '';
 
   root.innerHTML = `<div class="modal-backdrop">
     <div class="modal">
-      <h3>Miktar Gir</h3>
-      <div class="mat-info"><div>${esc(m.tanim)}</div></div>
+      <h3>${mevcut ? '✏️ Miktarı Güncelle' : 'Miktar Gir'}</h3>
+      <div class="mat-info">
+        <div>${esc(m.tanim)}</div>
+        ${liste ? `<div class="hint" style="margin-top:4px;">📅 ${esc(liste)}</div>` : ''}
+      </div>
       <label>İstenen Miktar (ADET):</label>
       <input type="number" id="modalAmt" min="1" step="1" value="${mevcut || ''}">
       <div class="actions">
         <button class="btn btn-gray" id="modalCancel">İptal</button>
-        <button class="btn btn-green" id="modalSave">✅ Onayla</button>
+        <button class="btn btn-green" id="modalSave">✅ ${mevcut ? 'Güncelle' : 'Onayla'}</button>
       </div>
     </div>
   </div>`;
@@ -309,12 +398,13 @@ function openAmountModal(key) {
 async function kaydetModal(key) {
   const v = Number($('modalAmt').value);
   if (!v || v <= 0) { toast('Geçerli bir miktar girin'); return; }
+  if (!STATE.donem) { toast('Önce bir liste açın'); return; }
 
   const btn = $('modalSave');
   if (btn) btn.disabled = true;
 
   try {
-    const res = await api.saveRequestByToken(STATE.token, key, v);
+    const res = await api.saveRequestByToken(STATE.token, STATE.donem.id, key, v);
     STATE.requests[key] = STATE.requests[key] || {};
     STATE.requests[key][STATE.selectedServiceId] = v;
     STATE.requestInfo[key] = STATE.requestInfo[key] || {};
@@ -332,9 +422,10 @@ async function kaydetModal(key) {
 }
 
 async function istekSil(key) {
+  if (!STATE.donem) return;
   if (!confirm('Bu istek silinsin mi?')) return;
   try {
-    await api.deleteRequestByToken(STATE.token, key);
+    await api.deleteRequestByToken(STATE.token, STATE.donem.id, key);
     if (STATE.requests[key]) delete STATE.requests[key][STATE.selectedServiceId];
     if (STATE.requestInfo[key]) delete STATE.requestInfo[key][STATE.selectedServiceId];
     toast('Silindi');
@@ -536,7 +627,78 @@ $('printBtn').onclick = () => {
   if (sonuc === 'blocked') toast('Yazdırma penceresi engellendi');
 };
 
+/* ---------------- Kullanım kılavuzu ---------------- */
+
+const KILAVUZ_ANAHTAR = 'dmoServisKilavuzGoruldu';
+
+function kilavuzGoruldu() {
+  try { return localStorage.getItem(KILAVUZ_ANAHTAR) === '1'; } catch (e) { return true; }
+}
+
+function kilavuzIsaretle() {
+  try { localStorage.setItem(KILAVUZ_ANAHTAR, '1'); } catch (e) { /* yoksay */ }
+}
+
+// İlk girişte kısa bilgilendirme şeridi gösterilir; "Anladım" ile bir daha çıkmaz.
+function guideGoster() {
+  const el = $('guideBanner');
+  if (el) el.classList.toggle('hidden', kilavuzGoruldu());
+}
+
+function kilavuzAc() {
+  const root = $('modalRoot');
+  const liste = String((STATE.donem && STATE.donem.ad) || '').trim();
+  const listeTxt = liste ? `<b>${esc(liste)}</b>` : '<b>—</b>';
+
+  root.innerHTML = `<div class="modal-backdrop">
+    <div class="modal modal-guide">
+      <h3>❓ Nasıl Kullanılır</h3>
+      <ol class="guide-steps">
+        <li><b>Listeyi seçin.</b> Üstteki <b>Liste</b> kutusunda çalıştığınız ihale listesi görünür: ${listeTxt}.
+            Link birden fazla listeye bağlıysa buradan geçiş yapabilirsiniz; her liste için ayrı link almanız gerekmez.</li>
+        <li><b>Malzemeyi bulun.</b> <b>📋 Malzeme Listesi</b> sekmesinde <b>Branş</b> filtresini ve arama kutusunu kullanın.</li>
+        <li><b>Miktar girin.</b> Satırdaki <b>➕ Ekle</b> düğmesine basın, adedi yazıp <b>Onayla</b> deyin.
+            Şartname varsa <b>📄</b> düğmesiyle açabilirsiniz.</li>
+        <li><b>İsteklerinizi görün.</b> Girdiğiniz kalemler <b>✅ İsteklerim</b> sekmesinde tarih/saat ile listelenir.</li>
+        <li><b>Düzeltin.</b> İsteklerim'de <b>✏️</b> ile miktarı güncelleyin, <b>🗑</b> ile silin.</li>
+        <li><b>Yazdırın.</b> <b>🖨️ Yazdır</b> ile taahhüt metni ve imza alanlı listeyi alın.
+            Üstteki <b>Yön</b>, <b>İmza</b> ve <b>Satırdaki kutu</b> alanlarıyla çıktıyı ayarlayın.</li>
+      </ol>
+      <div class="guide-note">ℹ️ Girdiğiniz miktarlar yönetici panelinde anında görünür.
+        Değişiklikler yalnızca seçili listeye (${listeTxt}) yazılır.</div>
+      <div class="actions">
+        <button class="btn" id="guideOk">Anladım</button>
+      </div>
+    </div>
+  </div>`;
+
+  $('guideOk').onclick = () => {
+    kilavuzIsaretle();
+    const b = $('guideBanner');
+    if (b) b.classList.add('hidden');
+    root.innerHTML = '';
+  };
+}
+
 /* ---------------- Olaylar ---------------- */
+
+$('helpBtn').onclick = () => kilavuzAc();
+$('guideClose').onclick = () => {
+  kilavuzIsaretle();
+  $('guideBanner').classList.add('hidden');
+};
+$('guideDetail').onclick = () => kilavuzAc();
+
+// Başka bir listeye geçiş (link aynı kalır)
+$('listSelect').addEventListener('change', async () => {
+  const id = $('listSelect').value;
+  if (!id || (STATE.donem && STATE.donem.id === id)) return;
+  try {
+    await listeAc(id);
+  } catch (e) {
+    toast('Liste açılamadı: ' + (e && e.message ? e.message : e));
+  }
+});
 
 $('bransSelect').addEventListener('change', renderList);
 $('matFilter').addEventListener('input', renderList);

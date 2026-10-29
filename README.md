@@ -192,9 +192,17 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
 3. **Excel Yükle** — dosyada şu sütunlar aranır:
    `Malzeme Tanımı`, `Taşınır Kodu`, `SutKodu`, `SMT Kodu`, `Branş (Kategori Adı)`.
    (Sütun adları esnek eşlenir; `Taşınır Kodu` boşsa `SutKodu` anahtar olur.)
-4. **Servis Ekle** — her servis için bir link üretilir, 📋 ile kopyalanır.
+4. **Servis Ekle** — servis adını yazın, altındaki **"Link hangi listelerde geçerli olsun?"**
+   kutucuklarından bu servisin göreceği listeleri işaretleyin (**açık liste varsayılan olarak seçilidir**).
+   Tek bir link üretilir ve **işaretlenen tüm listelerde geçerlidir**; her liste için ayrı link gerekmez.
    Linkler `https://dmo-sarf-istek.pages.dev/service?token=<token>` biçimindedir ve adres
    [firebase-config.js](public/js/firebase-config.js) içindeki `PORTAL_BASE_URL` ile sabittir.
+   - Servis listesinde her satırda **📚 N liste** rozeti görünür (üzerine gelince liste adları).
+   - **📚 düğmesi** ile servisin gördüğü listeler sonradan değiştirilebilir; **link aynı kalır**,
+     servis yeni listeyi portalda görmeye başlar.
+   - **🗑** ile servis tek listeden çıkarılır; başka listelerde bağlıysa link oralarda geçerli kalır
+     (o listenin talepleri silinir). Son liste de kaldırılırsa link tamamen geçersiz olur.
+   - Servis adı değiştirildiğinde bağlı olduğu **tüm listelerdeki** kayıtlar birlikte güncellenir.
 5. **Şartname Yükle** — üç yol var:
    - **📄 Dosya Seç:** birden fazla dosya seçilebilir (Word `.docx`/`.doc` veya PDF).
    - **📁 Klasör Seç:** tüm klasör (alt klasörler dahil) taranır, uygun dosyalar tek tek yüklenir.
@@ -281,20 +289,26 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
 
 ### Servis portalı (`/s/<token>`)
 
-1. Link açılır → servis adı ve dönem görünür → **Giriş Yap**.
+1. Link açılır → servis adı ve **liste (dönem)** görünür → **Giriş Yap**.
+   Link birden fazla listeye bağlıysa giriş ekranındaki **Liste** kutusundan hangi listede işlem
+   yapılacağı seçilir; tek listeye bağlıysa kutu kilitlidir.
 2. Branş filtresi + arama ile malzeme bulun → **➕ Ekle** → miktarı girin.
-3. **İsteklerim** tablosunda tarih/saat ile listelenir; 🗑 ile silinir.
-4. Listenin altında **📌 Taahhüt** kutusu otomatik oluşur (kalem sayısı ve ay sayısı canlı güncellenir):
+   Şartname varsa **📄** ile açılır.
+3. **İsteklerim** tablosunda tarih/saat ile listelenir; **✏️** ile miktar **güncellenir**, 🗑 ile silinir.
+4. Üstteki **Liste** kutusundan (ya da **🔄 Servisi Değiştir** ile yeni link girerek) başka bir
+   listeye geçilebilir. **Her listenin talepleri ayrı tutulur**; bir listede girilen miktar
+   diğer listeye yazılmaz. Link değişmeden geçiş yapıldığı için servis tek linkle çalışır.
+5. Listenin altında **📌 Taahhüt** kutusu otomatik oluşur (kalem sayısı ve ay sayısı canlı güncellenir):
    *"Yukarıda listelenen N kalem malzeme, Ameliyathane servisinin 4 aylık ihtiyacı için tarafımızdan
    talep edilmiştir. Söz konusu malzemeleri 4 ay boyunca kullanacağımızı ve miktarların servisimizin
    gerçek ihtiyacına uygun olduğunu beyan ve taahhüt ederiz."* Altında İstekte Bulunan / Servis
    Sorumlusu / Tarih imza alanları vardır.
-5. **Yazdır** → **Yön** kutusundan A4 **yatay** (varsayılan) veya **dikey** seçilir; başlıkta dönem + **aylık ihale**, tabloda **sıra numarası**, tablo altında
+6. **Yazdır** → **Yön** kutusundan A4 **yatay** (varsayılan) veya **dikey** seçilir; başlıkta dönem + **aylık ihale**, tabloda **sıra numarası**, tablo altında
    *"Toplam N kalem malzeme · 4 aylık ihtiyaç"* satırı ve **taahhüt metni** + imza kutuları bulunur.
    Birden fazla sayfa gerekiyorsa üst başlık her sayfada yinelenir, sağ altta **`2 / 10`** biçiminde
    sayfa numarası çıkar; taahhüt metni ile imza kutuları **tek parça** sayılır — imza kutuları
    sonraki sayfaya geçerse taahhüt metni de onlarla birlikte gider.
-6. **İmza kutuları** — iki alan vardır:
+7. **İmza kutuları** — iki alan vardır:
    - **İmza:** toplam kutu sayısı. **Üst sınır yoktur** (0–istediğiniz kadar).
    - **Satırdaki kutu:** her satırda kaç kutu olacağı. **Boş bırakılırsa** kutular dengeli
      dağıtılır (4'e kadar tek satır; 5 → 3+2, 6 → 3+3, 8 → 4+4, 10 → 5+5, 12 → 4+4+4,
@@ -315,9 +329,12 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
    | 12 | 4 + 4 + 4 |
    | 13 | 5 + 5 + 3 |
 
-7. 📄 butonu şartnameyi açar: **Word (.docx)** dosyaları biçimlendirmesiyle birlikte pencere içinde
+8. 📄 butonu şartnameyi açar: **Word (.docx)** dosyaları biçimlendirmesiyle birlikte pencere içinde
    görüntülenir (tablo/başlıklar korunur), PDF'ler yeni sekmede açılır, eski `.doc` dosyaları indirilir.
    Önizleme penceresindeki **⬇ İndir** ile orijinal dosya alınabilir.
+9. **Kullanım kılavuzu** — portaldaki **❓ Nasıl Kullanılır** düğmesi adım adım anlatımı açar.
+   İlk girişte üstte kısa bir bilgilendirme şeridi de çıkar; **Anladım** denince tarayıcıda
+   hatırlanır ve bir daha görünmez (düğmeden her zaman açılabilir).
 
 ---
 
@@ -336,7 +353,8 @@ Firebase Authentication, `localhost` alan adına izin verir; ek ayar gerekmez.
 - Servis adına tıklayınca o servisin linki görünür; 📋 ile kopyalanır.
 
 **Servis portalı** tek ekranda sekmelidir: “Malzeme Listesi” ve “İsteklerim”.
-Sekme sayesinde iki tablo üst üste uzamaz; her tablo kendi içinde kayar.
+Sekme sayesinde iki tablo üst üste uzamaz; her tablo kendi içinde kayar. Üst çubuktaki
+**Liste** kutusu servisin bağlı olduğu listeleri gösterir; tek linkle listeler arasında geçiş yapılır.
 
 ## 6. Veri modeli
 
@@ -346,15 +364,26 @@ donemler/{donemId}
   ├─ malzemeler/{materialKey}
   │    key, sutKodu, tasinirKodu, tanim, smtKodu, branslar[], order
   └─ servisler/{serviceId}
-       id, name, token, createdAt
+       id, name, token, listeler[], createdAt
 
-publicData/{token}          ← portalın okuduğu/yazdığı tek doküman
-  donemId, donemAd, aySure, serviceId, name, branslar[],
-  istekler: { "<materialKey>": { miktar, tarih } }
+publicData/{token}          ← portalın okuduğu/yazdığı tek doküman (link başına bir tane)
+  name,
+  uyeler:   { "<donemId>": { serviceId, ad, aySure, branslar[] } },
+  istekler: { "<donemId>": { "<materialKey>": { miktar, tarih } } }
 
 sartnameler/{smtKodu}                 (dosya bilgisi: ad, tür, boyut, parça sayısı)
   └─ parcalar/{i}                    (base64 parçaları, ~384 KB)
 ```
+
+Tek bir servis linki (`token`) birden fazla **listeye** (döneme) bağlı olabilir: `uyeler` hangi
+listelerde geçerli olduğunu, `istekler` ise **liste bazında** girilen miktarları tutar. Böylece
+her liste için ayrı link üretmek gerekmez; portal girişte listeyi seçer.
+
+> **Eski (tek listeli) belgeler:** `uyeler` alanı yoktur; `istekler` doğrudan
+> `{ "<materialKey>": { miktar, tarih } }` biçimindedir ve belgenin `donemId`'sine aittir.
+> [`hubUyeler`](public/js/data.js) / [`hubIstekler`](public/js/data.js) iki biçimi de okur;
+> ilk yazmada belge yeni (liste bazlı) biçime dönüştürülür — elle taşıma gerekmez.
+> Aynı linke sonradan liste eklemek/çıkarmak için paneldeki **📚** düğmesi kullanılır.
 
 `aySure` = ihale süresi (ay). Dönem oluşturulurken girilir, **✏️ Dönem** ile değiştirilir ve
 `syncPublicData` ile tüm servis dokümanlarına yazılır (portaldaki taahhüt metni buradan okur).
