@@ -32,4 +32,4 @@ export const APP_TITLE = 'A Grubu Tıbbi Sarf Malzeme İstek Sistemi';
 // dağıtıp burayı şöyle değiştirin: 'https://dmo-sarf-istek.pages.dev/s/{token}'
 //
 // Boş bırakılırsa: <sayfanın açıldığı adres>/s/<token>
-export const PORTAL_BASE_URL = 'https://dmo-sarf-istek.pages.dev/service?token={token}';
+export const PORTAL_BASE_URL = 'https://dmo-sarf-istek.onrender.com/service?token={token}';
