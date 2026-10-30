@@ -19,7 +19,7 @@
 // NOT: Bu dosya veri okumaz/yazmaz. Google Sheets artık kullanılmaz;
 //      tüm veriler Firebase'de tutulur.
 
-var PORTAL_ORIGIN = 'https://dmo-sarf-istek.pages.dev';
+var PORTAL_ORIGIN = 'dmo-sarf-istek.onrender.com';
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
